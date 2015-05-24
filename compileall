@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gcc -o otp_enc_d otp_enc_d.c
