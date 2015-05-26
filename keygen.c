@@ -33,20 +33,16 @@ int main(int argc, char *argv[])
 	char *randomizedString;
 
 	// If there are more than 2 parameters, then get the randomized string.
-	if (argc >= 2)
-	{
-		randomStringLength = atoi(argv[1]);
-
-		randomizedString = (char*)malloc(sizeof(char)*(randomStringLength+1));
-		GetRandomizedString(randomizedString, randomStringLength);
-	}
-
-	// If there are exactly 2 parameters, then output to stdout
 	if (argc == 2)
 	{
-		printf("%s\n\n", randomizedString);
+		randomStringLength = atoi(argv[1]);
+		randomizedString = (char*)malloc(sizeof(char)*(randomStringLength+1));
+
+		GetRandomizedString(randomizedString, randomStringLength);
+		printf("%s\n", randomizedString);
 	}
 
+	// Free the allocated string memeory
 	free(randomizedString);
 
 	return 0;

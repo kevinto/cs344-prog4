@@ -1,3 +1,4 @@
 #!/bin/bash
 
 rm -rf keygen
+rm -rf key20 key70000 
