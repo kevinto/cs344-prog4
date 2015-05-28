@@ -1,4 +1,4 @@
 #!/bin/bash
 
-gcc -o keygen keygen.c
-gcc -o otp_enc otp_enc.c
+gcc keygen.c -g -Wall -std=c99 -D_XOPEN_SOURCE=600 -o keygen
+gcc otp_enc.c -g -Wall -std=c99 -D_XOPEN_SOURCE=600 -o otp_enc 

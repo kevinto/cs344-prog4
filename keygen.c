@@ -29,12 +29,19 @@ int main(int argc, char *argv[])
 	// Seed the random number generator
 	srandom(time(NULL));
 
-	int randomStringLength;
 	char *randomizedString;
+
+	// If we have an incorrect amount of variables, show an error and exit.
+	if (argc != 2)
+	{
+		printf("keygen keylength\n");
+		exit(1);
+	}
 
 	// If there are more than 2 parameters, then get the randomized string.
 	if (argc == 2)
 	{
+		int randomStringLength;
 		randomStringLength = atoi(argv[1]);
 		randomizedString = (char*)malloc(sizeof(char)*(randomStringLength+1));
 

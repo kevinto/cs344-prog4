@@ -22,6 +22,7 @@
 
 void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void RemoveNewLineAndAddNullTerm(char *fileName);
+void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 
 /**************************************************************
  * * Entry:
@@ -84,6 +85,9 @@ int main(int argc, char *argv[])
 	// printf("string contents: %s\n", plainTextString);
 	// printf("string contents: %s\n", keyString);
 
+	// Check if the key is shorter than the plaintext
+	CheckKeyLength(keySize, plainTextSize, argv[2]);
+
 	// Check if key or plain text have any invalid characters
 	ScanInvalidCharacters(plainTextString, plainTextSize);
 	ScanInvalidCharacters(keyString, keySize);
@@ -92,6 +96,29 @@ int main(int argc, char *argv[])
 	free(plainTextString);
 	free(keyString);
 	return 0;
+}
+
+/**************************************************************
+ * * Entry:
+ * *  keySize - the size of the key
+ * *  plainTextSize - the size of the plain text
+ * *  keyName - the key file name
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * *  Checks if key is shorter than the plaintext. If it is, then
+ * *	display the error message and exit.
+ * *
+ * ***************************************************************/
+void CheckKeyLength(long keySize, long plainTextSize, char *keyName)
+{
+	if (keySize < plainTextSize)
+	{
+		printf("Error: key ‘%s’ is too short\n", keyName);
+		exit(1);
+	}
 }
 
 /**************************************************************
