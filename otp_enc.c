@@ -84,11 +84,9 @@ int main(int argc, char *argv[])
 	// printf("string contents: %s\n", plainTextString);
 	// printf("string contents: %s\n", keyString);
 
-
-	// TODO: do the character validation. change the function name
 	// Check if key or plain text have any invalid characters
 	ScanInvalidCharacters(plainTextString, plainTextSize);
-	// ScanInvalidCharacters(argv[2]);
+	ScanInvalidCharacters(keyString, keySize);
 
 	// Free the strings
 	free(plainTextString);
@@ -96,20 +94,33 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+/**************************************************************
+ * * Entry:
+ * *  stringValue - the string you want to validate
+ * *  stringLength - the length of the string you want to validate
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * *  Checks if the string does not contain uppercase letters or 
+ * *	space. If it does not, then the program exits with an error.
+ * *
+ * ***************************************************************/
 void ScanInvalidCharacters(char *stringValue, int stringLength)
 {
-   static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
-   char *position;
+	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
 
-   int i;
-   for (i = 0; i < stringLength; i++)
-   {
+	int i;
+	for (i = 0; i < stringLength; i++)
+	{
       // If there is an invalid character then exit the program
-      if (strchr(possibleChars, stringValue[i]) == 0)
-      {
-	 exit(1);
-      }
-   }
+		if (strchr(possibleChars, stringValue[i]) == 0)
+		{
+			printf("otp_enc error: input contains bad characters\n");
+			exit(1);
+		}
+	}
 }
 
 /**************************************************************
