@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <time.h>
 
-void ScanFileForInvalidCharacters(char *stringToCheck);
+void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void RemoveNewLineAndAddNullTerm(char *fileName);
 
 /**************************************************************
@@ -87,8 +87,8 @@ int main(int argc, char *argv[])
 
 	// TODO: do the character validation. change the function name
 	// Check if key or plain text have any invalid characters
-	// ScanFileForInvalidCharacters(argv[1]);
-	// ScanFileForInvalidCharacters(argv[2]);
+	ScanInvalidCharacters(plainTextString, plainTextSize);
+	// ScanInvalidCharacters(argv[2]);
 
 	// Free the strings
 	free(plainTextString);
@@ -96,48 +96,20 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-void ScanFileForInvalidCharacters(char *fileName)
+void ScanInvalidCharacters(char *stringValue, int stringLength)
 {
-	// static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
-	// FILE *filePointer;
+   static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+   char *position;
 
-	// filePointer = fopen(fileName, "r");
- //  while(fgets(readString, 199, filePointer))
- //  {
- //     // Load the connections
- //     if (strstr(readString, "CONNECTION") != NULL) {
- //        strncpy(saveString, readString + 14, 79);
- //        RemoveNewLineAndAddNullTerm(saveString);
- //        AddConnectionToRoom(rooms, i, saveString);
- //     }
-
- //     // Load the room type
- //     if (strstr(readString, "ROOM TYPE:") != NULL) {
- //        strncpy(saveString, readString + 11, 79);
- //        RemoveNewLineAndAddNullTerm(saveString);
- //        strncpy(rooms[i].roomType, saveString, 79);
- //     }
- //  }
-
- //  fclose(filePointer);
-
-	FILE *filePointer = fopen(fileName, "rb");
-
-	// Find the size of the file
-	fseek(filePointer, 0, SEEK_END); // Sets the position indicator to the end of the file
-	long fsize = ftell(filePointer); // Gets the file size
-	fseek(filePointer, 0, SEEK_SET); // Sets the position indicator to the start of the file
-
-	// Get the string from the file
-	char *stringFromFile = malloc(fsize + 1); // Allocates memory for the string taken from the file
-	fread(stringFromFile, fsize, 1, filePointer); // Get the string from the file
-	fclose(filePointer);
-
-	stringFromFile[fsize] = 0; // Null terminate the string
-	RemoveNewLineAndAddNullTerm(stringFromFile);
-
-	printf("string contents: %s\n", stringFromFile);
-	free(stringFromFile);
+   int i;
+   for (i = 0; i < stringLength; i++)
+   {
+      // If there is an invalid character then exit the program
+      if (strchr(possibleChars, stringValue[i]) == 0)
+      {
+	 exit(1);
+      }
+   }
 }
 
 /**************************************************************
