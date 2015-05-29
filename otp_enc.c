@@ -19,10 +19,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <sys/types.h>
 
 void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void RemoveNewLineAndAddNullTerm(char *fileName);
 void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
+void error(const char *msg);
+void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize);
 
 /**************************************************************
  * * Entry:
@@ -41,7 +47,7 @@ int main(int argc, char *argv[])
 	//  display the correct message.
 	if (argc != 4)
 	{
-		printf("otp_enc plaintext key port\n");
+		printf("usage: otp_enc plaintext key port\n");
 		exit(1);
 	}
 
@@ -79,12 +85,6 @@ int main(int argc, char *argv[])
 	keyString[keySize] = 0; // Null terminate the string
 	RemoveNewLineAndAddNullTerm(keyString);
 
-	// For debugging -----------------------------------
-	// printf("plainTextSize: %ld\n", plainTextSize);
-	// printf("keySize: %ld\n", keySize);
-	// printf("string contents: %s\n", plainTextString);
-	// printf("string contents: %s\n", keyString);
-
 	// Check if the key is shorter than the plaintext
 	CheckKeyLength(keySize, plainTextSize, argv[2]);
 
@@ -92,10 +92,60 @@ int main(int argc, char *argv[])
 	ScanInvalidCharacters(plainTextString, plainTextSize);
 	ScanInvalidCharacters(keyString, keySize);
 
+	// Connect to server
+	ConnectToServer(argv[3], plainTextString, plainTextSize, keyString, keySize);
+
 	// Free the strings
 	free(plainTextString);
 	free(keyString);
 	return 0;
+}
+
+void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize)
+{
+	int sockfd, portNumber, n;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
+
+  char buffer[256];
+  portNumber = atoi(portString);
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) 
+      error("ERROR opening socket");
+  server = gethostbyname("localhost");
+  if (server == NULL) {
+      fprintf(stderr,"ERROR, no such host\n");
+      exit(0);
+  }
+  bzero((char *) &serv_addr, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  bcopy((char *)server->h_addr, 
+       (char *)&serv_addr.sin_addr.s_addr,
+       server->h_length);
+  serv_addr.sin_port = htons(portNumber);
+  if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+  {
+  	printf("Error: could not contact otp_enc_d on port %d\n", portNumber);
+  	exit(2);
+  }
+  // printf("Please enter the message: ");
+  // bzero(buffer,256);
+  // fgets(buffer,255,stdin);
+  // n = write(sockfd,buffer,strlen(buffer));
+  // if (n < 0) 
+  //      error("ERROR writing to socket");
+  // bzero(buffer,256);
+  // n = read(sockfd,buffer,255);
+  // if (n < 0) 
+  //      error("ERROR reading from socket");
+  // printf("%s\n",buffer);
+  close(sockfd);
+}
+
+void error(const char *msg)
+{
+    perror(msg);
+    exit(0);
 }
 
 /**************************************************************
