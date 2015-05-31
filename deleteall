@@ -3,4 +3,6 @@
 rm -rf keygen
 rm -rf key20 key70000 
 
-rm -rf keygen otp_enc
+rm -rf keygen otp_enc otp_enc_d
+
+killall otp*

@@ -10,16 +10,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-// stdin fix 
-#include <termios.h>
-
-#define MAX_ARGS 513 
-#define MAX_COMMAND_LENGTH 513 
-#define MAX_ERR_MSG_LENGTH 80 
+void error(const char *msg)
+{
+  perror(msg);
+  exit(1);
+}
 
 /**************************************************************
  * * Entry:
@@ -29,10 +27,96 @@
  * *  N/a
  * *
  * * Purpose:
- * *	This is the entry point into the program.
+ * *  This is the entry point into the program.
  * *
  * ***************************************************************/
-int main()
+int main(int argc, char *argv[])
 {
-	return 0;
+  int sockfd, newsockfd, portno;
+  socklen_t clilen;
+  char buffer[256];
+  struct sockaddr_in serv_addr, cli_addr;
+  int n;
+  if (argc < 2)
+  {
+    fprintf(stderr, "ERROR, no port provided\n");
+    exit(1);
+  }
+
+  // Creates a new socket. It returns a file desc that
+  // refers to the socket
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0)
+  {
+    error("ERROR opening socket");
+  }
+
+  // Sets all values in the struct to 0
+  bzero((char *) &serv_addr, sizeof(serv_addr));
+
+  // Gets the port number from the param sent in
+  portno = atoi(argv[1]);
+
+  // Set the socket address stuct
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons(portno);
+
+  // Bind the socket to an address
+  if (bind(sockfd, (struct sockaddr *) &serv_addr,
+           sizeof(serv_addr)) < 0)
+  {
+    error("ERROR on binding");
+  }
+
+  // Listens to the socket for connections. Max of 5 connections
+  // queued
+  listen(sockfd, 5);
+
+  // Get client connection
+  while (1)
+  {
+    clilen = sizeof(cli_addr);
+    newsockfd = accept(sockfd,
+                       (struct sockaddr *) &cli_addr,
+                       &clilen);
+
+    if (newsockfd < 0)
+    {
+      error("ERROR on accept");
+    }
+
+    bzero(buffer, 256);
+    // n = read(newsockfd,buffer,9);
+    // if (n < 0)
+    // {
+    //     error("otp_enc_d: ERROR reading from socket");
+    // }
+    while (1) // http://geeky.altervista.org/blog/receive-tcp-packets-from-a-socket-c-language/?doing_wp_cron=1432966436.4647989273071289062500
+    {
+      n = read(newsockfd, buffer, 1);
+      if (n < 0) error("ERROR reading from socket");
+      fflush(stdout);
+
+      if (n == 0 || buffer[0] == ';')
+      {
+        break;
+      }
+
+      // printf("%c", buffer[0]);
+    }
+
+    // printf("Here is the message: %s\n", buffer);
+    // bzero(buffer, 256);
+    // n = write(newsockfd, "I got your message", 18);
+    // if (n < 0)
+    // {
+    //   error("ERROR writing to socket");
+    // }
+
+    close(newsockfd);
+  }
+
+  close(sockfd);
+  return 0;
 }
