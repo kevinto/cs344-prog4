@@ -33,6 +33,7 @@ void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 void error(const char *msg);
 void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName);
 void RemoveNullTermAndAddSemiColon(char *stringValue);
+void SendFileToServer(int sockfd, char *fileName);
 
 /**************************************************************
  * * Entry:
@@ -105,7 +106,6 @@ int main(int argc, char *argv[])
   // Free the strings
   free(plainTextString);
   free(keyString);
-  printf("otp_enc: exiting program\n");
   return 0;
 }
 
@@ -122,15 +122,9 @@ int main(int argc, char *argv[])
  * ***************************************************************/
 void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName)
 {
-  int sockfd, portNumber, n, fd, remain_data;
-  off_t offset = 0;
-  int sent_bytes = 0;
+  int sockfd, portNumber;
   struct sockaddr_in serv_addr;
   struct hostent *server;
-  char file_size[256];
-  struct stat file_stat;
-
-  char buffer[256];
   portNumber = atoi(portString);
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -158,8 +152,68 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
     exit(2);
   }
 
-  // Open the plaintext file to send
-  fd = open(plainTextFileName, O_RDONLY);
+  SendFileToServer(sockfd, plainTextFileName);
+  // // Open the plaintext file to send
+  // fd = open(plainTextFileName, O_RDONLY);
+  // if (fd == -1)
+  // {
+  //   // fprintf(stderr, "Error opening file --> %s", strerror(errno));
+  //   printf("Error opening file\n");
+  //   exit(1);
+  // }
+
+  // /* Get file stats */
+  // if (fstat(fd, &file_stat) < 0)
+  // {
+  //   // fprintf(stderr, "Error fstat --> %s", strerror(errno));
+  //   printf("Error getting file stats\n");
+  //   exit(1);
+  // }
+
+  // // fflush(stdout);
+  // // printf("\nFile Size: %d bytes\n", file_stat.st_size);
+
+  // // Get the plaintext file size
+  // sprintf(file_size, "%d", file_stat.st_size);
+  
+  // // Send the plaintext file size to the server first
+  // n = send(sockfd, file_size, sizeof(file_size), 0);
+  // if (n < 0)
+  // {
+  //   printf("otp_enc: Error on sending initial file size\n");
+  // }
+  
+  // // Send the actual file
+  // offset = 0;
+  // remain_data = file_stat.st_size;
+  // while (((sent_bytes = sendfile(sockfd, fd, &offset, BUFSIZ)) > 0) && (remain_data > 0)) 
+  // {
+  //   fflush(stdout);
+  //   // printf("1. client sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+  //   remain_data -= sent_bytes;
+  //   // printf("2. clint sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+  // }
+
+  // bzero(buffer, 256);
+  // n = read(sockfd, buffer, 255);
+  // if (n < 0)
+  //     error("ERROR reading from socket");
+  // printf("%s\n", buffer);
+
+  // close(fd);
+  close(sockfd);
+}
+
+void SendFileToServer(int sockfd, char *fileName)
+{
+ 	int n, fd, remain_data;
+  off_t offset = 0;
+  int sent_bytes = 0;
+  char file_size[256];
+  struct stat file_stat;
+
+	// Open the plaintext file to send
+  fd = open(fileName, O_RDONLY);
   if (fd == -1)
   {
     // fprintf(stderr, "Error opening file --> %s", strerror(errno));
@@ -175,8 +229,8 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
     exit(1);
   }
 
-  fflush(stdout);
-  printf("\nFile Size: %d bytes\n", file_stat.st_size);
+  // fflush(stdout);
+  // printf("\nFile Size: %d bytes\n", file_stat.st_size);
 
   // Get the plaintext file size
   sprintf(file_size, "%d", file_stat.st_size);
@@ -199,15 +253,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
     // printf("2. clint sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
   }
 
-  bzero(buffer, 256);
-
-  // bzero(buffer, 256);
-  // n = read(sockfd, buffer, 255);
-  // if (n < 0)
-  //     error("ERROR reading from socket");
-  // printf("%s\n", buffer);
   close(fd);
-  close(sockfd);
 }
 
 /**************************************************************

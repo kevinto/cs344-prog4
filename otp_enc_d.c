@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
-  int plaintextTempFd, plaintextFileSize;
+  int plaintextTempFd, plaintextFileSize;//, keyTempFd, keyFileSize;
 
   // ------ Get plaintext data ----------------
   plaintextTempFd = GetTempFD(); // Create temp file to hold the recieved data
@@ -156,27 +156,27 @@ void ProcessConnection(int socket)
 
   char *plaintextString = malloc(plaintextFileSize + 1);
   PutFileIntoString(plaintextString, plaintextFileSize, plaintextTempFd);
+  printf("plaintext: %s\n", plaintextString); // For debug only
+  
+  // ------ Get key data ----------------
+  // keyTempFd = GetTempFD(); // Create temp file to hold the recieved data
+  // keyFileSize = ReceiveClientFile(socket, keyTempFd);
 
-  printf("plaintext: %s\n", plaintextString);
+  // char *keyString = malloc(keyFileSize + 1);
+  // PutFileIntoString(keyString, keyFileSize, keyTempFd);
+  // printf("plaintext: %s\n", keyString); // For debug only
+
+  // Think about how big the encypted string is...
+  // DoEncryption(plaintextString, plaintextFileSize, keyString, keyStringSize, encryptedString);
+
   free(plaintextString); 
   close(socket);
 }
 
 void PutFileIntoString(char *stringHolder, int stringSize, int fileFd)
 {
-  // char buffer[0];
-  // bzero(buffer, sizeof(buffer));
-  // int currentPosition = 0;
-
-  // while (read(fileFd, buffer, 1) > 0)
-  // {
-  //   // stringHolder[currentPosition] = buffer[0];
-  //   // currentPosition++;
-  //   printf("%s", buffer);
-  // }
   read(fileFd, stringHolder, stringSize);
   stringHolder[stringSize + 1] = 0;
-  // printf("\n");
 }
 
 int ReceiveClientFile(int socket, int tempFd)
