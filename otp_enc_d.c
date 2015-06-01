@@ -18,11 +18,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 void ProcessConnection(int socket);
 void error(const char *msg);
+int GetTempFD();
 
-// Signal handler to reap zombie processes
+// Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
 {
   while (waitpid(-1, NULL, WNOHANG) > 0);
@@ -154,6 +156,9 @@ void ProcessConnection(int socket)
   file_size = atoi(buffer);
   printf("otp_enc_d: get file size: %d bytes\n", file_size);
 
+  // TODO: implement tempfile stuff
+  // int tempfd = GetTempFD();
+
   // Open the recieving file for writing
   received_file = fopen("filetorecieve.txt", "w");
   if (received_file == NULL)
@@ -198,4 +203,58 @@ void error(const char *msg)
 {
   perror(msg);
   exit(1);
+}
+
+// found here: http://www.thegeekstuff.com/2012/06/c-temporary-files/
+int GetTempFD()
+{
+  char tempFileNameBuffer[32];
+  char buffer[24];
+  int filedes = -1;
+
+  // Zero out the buffers
+  bzero(tempFileNameBuffer, sizeof(tempFileNameBuffer));
+  bzero(buffer, sizeof(buffer));
+
+  // Set up temp template
+  strncpy(tempFileNameBuffer, "/tmp/myTmpFile-XXXXXX", 21);
+  // strncpy(buffer, "Hello World", 11); // Need for test only
+
+  errno = 0;
+  // Create the temporary file, this function will replace the 'X's
+  filedes = mkstemp(tempFileNameBuffer);
+
+  // Call unlink so that whenever the file is closed or the program exits
+  // the temporary file is deleted
+  unlink(tempFileNameBuffer);
+
+  if (filedes < 1)
+  {
+    printf("\n Creation of temp file failed with error [%s]\n", strerror(errno));
+    return 1;
+  }
+
+  // // Write some data to the temporary file
+  // if (-1 == write(filedes, buffer, sizeof(buffer)))
+  // {
+  //   printf("\n write failed with error [%s]\n", strerror(errno));
+  //   return 1;
+  // }
+
+  // // rewind the stream pointer to the start of temporary file
+  // if (-1 == lseek(filedes, 0, SEEK_SET))
+  // {
+  //   printf("\n lseek failed with error [%s]\n", strerror(errno));
+  //   return 1;
+  // }
+
+  return filedes;
+
+  // errno = 0;
+  // // rewind the stream pointer to the start of temporary file
+  // if (-1 == lseek(filedes, 0, SEEK_SET)) // Need this function for later
+  // {
+  //   printf("\n lseek failed with error [%s]\n", strerror(errno));
+  //   return 1;
+  // }
 }

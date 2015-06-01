@@ -31,13 +31,14 @@ void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void RemoveNewLineAndAddNullTerm(char *fileName);
 void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 void error(const char *msg);
-// void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize);
 void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName);
 void RemoveNullTermAndAddSemiColon(char *stringValue);
 
 /**************************************************************
  * * Entry:
- * *  N/a
+ * *  argc - the number of arguments passed into this program
+ * *  argv - a pointer to the char array of all the arguments 
+ * *         passed into this program
  * *
  * * Exit:
  * *  N/a
@@ -108,7 +109,17 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-// void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize)
+/**************************************************************
+ * * Entry:
+ * *  N/a
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  This is the entry point into the program.
+ * *
+ * ***************************************************************/
 void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName)
 {
   int sockfd, portNumber, n, fd, remain_data;
@@ -190,9 +201,6 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 
   bzero(buffer, 256);
 
-  // ---End Test
-
-
   // bzero(buffer, 256);
   // n = read(sockfd, buffer, 255);
   // if (n < 0)
@@ -202,6 +210,17 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
   close(sockfd);
 }
 
+/**************************************************************
+ * * Entry:
+ * *  msg - the message to print along with the error
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  This is the wrapper for the error handler.
+ * *
+ * ***************************************************************/
 void error(const char *msg)
 {
   perror(msg);
