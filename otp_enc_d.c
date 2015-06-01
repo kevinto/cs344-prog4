@@ -18,13 +18,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void ScanBufferForInvalidChars(char *buffer, int bufferSize);
-
-void error(const char *msg)
-{
-  perror(msg);
-  exit(1);
-}
+void ProcessConnection(int socket);
+void error(const char *msg);
 
 /**************************************************************
  * * Entry:
@@ -39,11 +34,15 @@ void error(const char *msg)
  * ***************************************************************/
 int main(int argc, char *argv[])
 {
-  int sockfd, newsockfd, portno, n, file_size, remain_data;
+  // int sockfd, newsockfd, portno, n, file_size, remain_data, pid;
+  // socklen_t clilen;
+  // char buffer[256];
+  // struct sockaddr_in serv_addr, cli_addr;
+  // FILE *received_file;
+
+  int sockfd, newsockfd, portno, pid;
   socklen_t clilen;
-  char buffer[256];
   struct sockaddr_in serv_addr, cli_addr;
-  FILE *received_file;
 
   if (argc < 2)
   {
@@ -88,78 +87,82 @@ int main(int argc, char *argv[])
     newsockfd = accept(sockfd,
                        (struct sockaddr *) &cli_addr,
                        &clilen);
-
     if (newsockfd < 0)
     {
       error("ERROR on accept");
     }
 
-    bzero(buffer, 256);
-
-    // Get the file size
-    recv(newsockfd, buffer, 255, 0);
-    file_size = atoi(buffer);
-    printf("otp_enc_d: get file size: %d bytes\n", file_size);
-
-    // Open the recieving file for writing
-    received_file = fopen("filetorecieve.txt", "w");
-    if (received_file == NULL)
+    // Create child process to handle processing
+    // TODO: need to limit to only 5 forks
+    pid = fork();
+    if (pid < 0)
     {
-      printf("client: Failed to open file \n");
-
+      perror("ERROR on fork");
       exit(1);
     }
 
-    // Get the file data and save into a file
-    bzero(buffer, 256);
-    remain_data = file_size;
-    while (((n = recv(newsockfd, buffer, 1, 0)) > 0) && (remain_data > 0))
+    if (pid == 0)
     {
-      if (buffer[0] == '\0')
-      {
-        continue;
-      }
-
-      fwrite(buffer, sizeof(char), n, received_file);
-      remain_data -= n;
-      printf("Receive %d bytes and we hope :- %d bytes\n", n, remain_data);
+      /* This is the client process */
+      close(sockfd);
+      ProcessConnection(newsockfd);
+      exit(0);
     }
-
-    fclose(received_file);
-
-    // Open file and try to print it
-    // Open the recieving file for writing
-    // received_file = fopen("filetorecieve.txt", O_RDONLY);
-    // if (received_file == NULL)
-    // {
-    //   printf("client: Failed to open file \n");
-
-    //   exit(1);
-    // }
-
-    // printf("trying to print\n");
-    // int c;
-    // if (received_file) {
-    //   while ((c = getc(received_file)) != EOF)
-    //     putchar(c);
-    //   fclose(received_file);
-    // }
-
-    close(newsockfd);
+    else
+    {
+      close(newsockfd);
+    }
   }
 
   close(sockfd);
   return 0;
 }
 
-void ScanBufferForInvalidChars(char *buffer, int bufferSize)
+void ProcessConnection(int socket)
 {
-  int i;
-  for (i = 0; i < bufferSize; i++)
+  int n, file_size, remain_data;
+  char buffer[256];
+  FILE *received_file;
+
+  bzero(buffer, 256);
+
+  // Get the file size
+  recv(socket, buffer, 255, 0);
+  file_size = atoi(buffer);
+  printf("otp_enc_d: get file size: %d bytes\n", file_size);
+
+  // Open the recieving file for writing
+  received_file = fopen("filetorecieve.txt", "w");
+  if (received_file == NULL)
   {
-    if (buffer[i] == '\0')
-    {
-      buffer[i] = ';';
-    }
+    printf("client: Failed to open file \n");
+
+    exit(1);
   }
+
+  // Get the file data and save into a file 1 character at a time
+  bzero(buffer, 256);
+  remain_data = file_size;
+  while (((n = recv(socket, buffer, 1, 0)) > 0) && (remain_data > 0))
+  {
+    // Do not write any null characters to the file
+    if (buffer[0] == '\0')
+    {
+      continue;
+    }
+
+    fwrite(buffer, sizeof(char), n, received_file);
+    remain_data -= n;
+    // printf("Receive %d bytes and we hope :- %d bytes\n", n, remain_data);
+  }
+
+  fclose(received_file);
+  close(socket);
+  sleep(10);
+}
+
+void error(const char *msg)
+{
+  perror(msg);
+  exit(1);
 }
