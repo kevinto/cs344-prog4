@@ -23,6 +23,9 @@
 void ProcessConnection(int socket);
 void error(const char *msg);
 int GetTempFD();
+void RemoveNewLineAndAddNullTerm(char *stringValue);
+int ReceiveClientFile(int socket, int tempFd);
+void PutFileIntoString(char *plaintextString, int plaintextFileSize, int plaintextTempFd);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -145,30 +148,47 @@ int main(int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
+  int plaintextTempFd, plaintextFileSize;
+
+  // ------ Get plaintext data ----------------
+  plaintextTempFd = GetTempFD(); // Create temp file to hold the recieved data
+  plaintextFileSize = ReceiveClientFile(socket, plaintextTempFd);
+
+  char *plaintextString = malloc(plaintextFileSize + 1);
+  PutFileIntoString(plaintextString, plaintextFileSize, plaintextTempFd);
+
+  printf("plaintext: %s\n", plaintextString);
+  free(plaintextString); 
+  close(socket);
+}
+
+void PutFileIntoString(char *stringHolder, int stringSize, int fileFd)
+{
+  // char buffer[0];
+  // bzero(buffer, sizeof(buffer));
+  // int currentPosition = 0;
+
+  // while (read(fileFd, buffer, 1) > 0)
+  // {
+  //   // stringHolder[currentPosition] = buffer[0];
+  //   // currentPosition++;
+  //   printf("%s", buffer);
+  // }
+  read(fileFd, stringHolder, stringSize);
+  stringHolder[stringSize + 1] = 0;
+  // printf("\n");
+}
+
+int ReceiveClientFile(int socket, int tempFd)
+{
   int n, file_size, remain_data;
   char buffer[256];
-
-  // FILE *received_file;
-  int received_file;
-
   bzero(buffer, 256);
 
   // Get the file size
   recv(socket, buffer, 255, 0);
   file_size = atoi(buffer);
-  printf("otp_enc_d: get file size: %d bytes\n", file_size);
-
-  // TODO: implement tempfile stuff
-  received_file = GetTempFD();
-
-  // Open the recieving file for writing
-  // received_file = fopen("filetorecieve.txt", "w");
-  // if (received_file == NULL)
-  // {
-  //   printf("client: Failed to open file \n");
-
-  //   exit(1);
-  // }
+  // printf("otp_enc_d: get file size: %d bytes\n", file_size); // For debug
 
   // Get the file data and save into a file 1 character at a time
   bzero(buffer, 256);
@@ -181,41 +201,33 @@ void ProcessConnection(int socket)
       continue;
     }
 
-    // fwrite(buffer, sizeof(char), n, received_file);
     errno = 0;
-    if (-1 == write(received_file, buffer, 1))
+    if (-1 == write(tempFd, buffer, 1))
     {
       printf("write failed with error [%s]\n", strerror(errno));
     }
 
     remain_data -= n;
+
+    // For debugging
     // printf("Receive %d bytes and we hope :- %d bytes\n", n, remain_data);
   }
 
   errno = 0;
   // rewind the stream pointer to the start of temporary file
-  if (-1 == lseek(received_file, 0, SEEK_SET))
+  if (-1 == lseek(tempFd, 0, SEEK_SET))
   {
     printf("\n lseek failed with error [%s]\n", strerror(errno));
   }
 
-  // errno = 0;
-  // if (read(received_file, buffer, 10) < 11)
+  // Debug code to read the temp file
+  // while (read(tempFd, buffer, 1) > 0)
   // {
-  //   printf("\n read failed with error [%s]\n", strerror(errno));
+  //   printf("%s", buffer);
   // }
-  while (read(received_file, buffer, 1) > 0)
-  {
-    printf("%s", buffer);
-  }
+  // printf("\n");
 
-  //Show whatever is read
-  printf("\n Data read back from temporary file is [%s]\n", buffer);
-
-  // fclose(received_file);
-  close(received_file);
-
-  close(socket);
+  return file_size;
 }
 
 /**************************************************************
@@ -289,4 +301,25 @@ int GetTempFD()
   //   printf("\n lseek failed with error [%s]\n", strerror(errno));
   //   return 1;
   // }
+}
+
+/**************************************************************
+ * * Entry:
+ * *  stringValue - the string you want to transform
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * *  Removes the new line character from the string and adds a null
+ * *  terminator in its place.
+ * *
+ * ***************************************************************/
+void RemoveNewLineAndAddNullTerm(char *stringValue)
+{
+  size_t ln = strlen(stringValue) - 1;
+  if (stringValue[ln] == '\n')
+  {
+    stringValue[ln] = '\0';
+  }
 }
