@@ -32,11 +32,12 @@ void error(const char *msg)
  * ***************************************************************/
 int main(int argc, char *argv[])
 {
-  int sockfd, newsockfd, portno;
+  int sockfd, newsockfd, portno, n, file_size, remain_data;
   socklen_t clilen;
   char buffer[256];
   struct sockaddr_in serv_addr, cli_addr;
-  int n;
+  FILE *received_file;
+
   if (argc < 2)
   {
     fprintf(stderr, "ERROR, no port provided\n");
@@ -92,20 +93,26 @@ int main(int argc, char *argv[])
     // {
     //     error("otp_enc_d: ERROR reading from socket");
     // }
-    while (1) // http://geeky.altervista.org/blog/receive-tcp-packets-from-a-socket-c-language/?doing_wp_cron=1432966436.4647989273071289062500
-    {
-      n = read(newsockfd, buffer, 1);
-      if (n < 0) error("ERROR reading from socket");
-      fflush(stdout);
 
-      if (n == 0 || buffer[0] == ';')
-      {
-        break;
-      }
+    // This does not work for large file sizes
+    // while (1) // http://geeky.altervista.org/blog/receive-tcp-packets-from-a-socket-c-language/?doing_wp_cron=1432966436.4647989273071289062500
+    // {
+    //   n = read(newsockfd, buffer, 1);
+    //   if (n < 0) error("ERROR reading from socket");
+    //   fflush(stdout);
 
-      // printf("%c", buffer[0]);
-    }
+    //   if (n == 0 || buffer[0] == ';')
+    //   {
+    //     break;
+    //   }
 
+    //   // This causes the flow not to work anymore
+    //   // printf("%c", buffer[0]);
+    // }
+
+    // TODO figure out how to save what is sent through
+
+    // This is the block to write back messages to the client
     // printf("Here is the message: %s\n", buffer);
     // bzero(buffer, 256);
     // n = write(newsockfd, "I got your message", 18);
@@ -113,6 +120,11 @@ int main(int argc, char *argv[])
     // {
     //   error("ERROR writing to socket");
     // }
+
+    // Get the file size
+    recv(newsockfd, buffer, 255, 0);
+    file_size = atoi(buffer);
+    printf("otp_enc_d: get file size: %d bytes\n", file_size);
 
     close(newsockfd);
   }

@@ -23,12 +23,16 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void RemoveNewLineAndAddNullTerm(char *fileName);
 void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 void error(const char *msg);
-void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize);
+// void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize);
+void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName);
 void RemoveNullTermAndAddSemiColon(char *stringValue);
 
 /**************************************************************
@@ -94,7 +98,8 @@ int main(int argc, char *argv[])
   ScanInvalidCharacters(keyString, keySize);
 
   // Connect to server
-  ConnectToServer(argv[3], plainTextString, plainTextSize, keyString, keySize);
+  // ConnectToServer(argv[3], plainTextString, plainTextSize, keyString, keySize);
+  ConnectToServer(argv[3], argv[1], argv[2]);
 
   // Free the strings
   free(plainTextString);
@@ -103,11 +108,16 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize)
+// void ConnectToServer(char *portString, char *plainTextString, int plainTextSize, char *keyString, int keySize)
+void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileName)
 {
-  int sockfd, portNumber, n;
+  int sockfd, portNumber, n, fd, remain_data;
+  off_t offset = 0;
+  int sent_bytes = 0;
   struct sockaddr_in serv_addr;
   struct hostent *server;
+  char file_size[256];
+  struct stat file_stat;
 
   char buffer[256];
   portNumber = atoi(portString);
@@ -139,23 +149,49 @@ void ConnectToServer(char *portString, char *plainTextString, int plainTextSize,
 
   // Lets try to write twice to the socket
   // Look at this link to send packets: http://stackoverflow.com/questions/6057896/copy-big-buffer-into-chunks-of-smaller-buffer
-  RemoveNullTermAndAddSemiColon(plainTextString);
-  int remain = plainTextSize;
-  while (remain)
-  {
-    bzero(buffer, 256);
-    int toCpy = remain > sizeof(buffer) ? sizeof(buffer) : remain;
-    memcpy(buffer, plainTextString, toCpy);
-    plainTextString += toCpy;
-    remain -= toCpy;
+  // RemoveNullTermAndAddSemiColon(plainTextString);
+  // int remain = plainTextSize;
+  // while (remain)
+  // {
+  //   bzero(buffer, 256);
+  //   int toCpy = remain > sizeof(buffer) ? sizeof(buffer) : remain;
+  //   memcpy(buffer, plainTextString, toCpy);
+  //   plainTextString += toCpy;
+  //   remain -= toCpy;
 
-    n = send(sockfd, buffer, strlen(buffer), 0);
-    if (n < 0)
-    {
-      error("otp_enc: ERROR writing to socket");
-    }
+  //   n = send(sockfd, buffer, strlen(buffer), 0);
+  //   if (n < 0)
+  //   {
+  //     error("otp_enc: ERROR writing to socket");
+  //   }
+  // }
+
+  // Open the plaintext file to send
+  fd = open(plainTextFileName, O_RDONLY);
+  if (fd == -1)
+  {
+      // fprintf(stderr, "Error opening file --> %s", strerror(errno));
+      printf("Error opening file\n");
+      exit(1);
   }
-  // printf("\n");
+
+  /* Get file stats */
+  if (fstat(fd, &file_stat) < 0)
+  {
+      // fprintf(stderr, "Error fstat --> %s", strerror(errno));
+      printf("Error getting file stats\n");
+      exit(1);
+  }
+  // Get the plaintext file size
+  sprintf(file_size, "%d", file_stat.st_size);
+
+  // Send the plaintext file size to the server first
+  n = send(sockfd, file_size, sizeof(file_size), 0);
+  if (n < 0)
+  {
+    printf("otp_enc: Error on sending initial file size\n");
+  }
+
   // ---End Test
 
 
@@ -164,7 +200,7 @@ void ConnectToServer(char *portString, char *plainTextString, int plainTextSize,
   // if (n < 0)
   //     error("ERROR reading from socket");
   // printf("%s\n", buffer);
-
+  close(fd);
   close(sockfd);
 }
 
