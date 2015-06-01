@@ -147,50 +147,48 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
     exit(2);
   }
 
-  // Lets try to write twice to the socket
-  // Look at this link to send packets: http://stackoverflow.com/questions/6057896/copy-big-buffer-into-chunks-of-smaller-buffer
-  // RemoveNullTermAndAddSemiColon(plainTextString);
-  // int remain = plainTextSize;
-  // while (remain)
-  // {
-  //   bzero(buffer, 256);
-  //   int toCpy = remain > sizeof(buffer) ? sizeof(buffer) : remain;
-  //   memcpy(buffer, plainTextString, toCpy);
-  //   plainTextString += toCpy;
-  //   remain -= toCpy;
-
-  //   n = send(sockfd, buffer, strlen(buffer), 0);
-  //   if (n < 0)
-  //   {
-  //     error("otp_enc: ERROR writing to socket");
-  //   }
-  // }
-
   // Open the plaintext file to send
   fd = open(plainTextFileName, O_RDONLY);
   if (fd == -1)
   {
-      // fprintf(stderr, "Error opening file --> %s", strerror(errno));
-      printf("Error opening file\n");
-      exit(1);
+    // fprintf(stderr, "Error opening file --> %s", strerror(errno));
+    printf("Error opening file\n");
+    exit(1);
   }
 
   /* Get file stats */
   if (fstat(fd, &file_stat) < 0)
   {
-      // fprintf(stderr, "Error fstat --> %s", strerror(errno));
-      printf("Error getting file stats\n");
-      exit(1);
+    // fprintf(stderr, "Error fstat --> %s", strerror(errno));
+    printf("Error getting file stats\n");
+    exit(1);
   }
+
+  fflush(stdout);
+  printf("\nFile Size: %d bytes\n", file_stat.st_size);
+
   // Get the plaintext file size
   sprintf(file_size, "%d", file_stat.st_size);
-
+  
   // Send the plaintext file size to the server first
   n = send(sockfd, file_size, sizeof(file_size), 0);
   if (n < 0)
   {
     printf("otp_enc: Error on sending initial file size\n");
   }
+  
+  // Send the actual file
+  offset = 0;
+  remain_data = file_stat.st_size;
+  while (((sent_bytes = sendfile(sockfd, fd, &offset, BUFSIZ)) > 0) && (remain_data > 0)) 
+  {
+    fflush(stdout);
+    printf("1. client sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+    remain_data -= sent_bytes;
+    printf("2. clint sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+  }
+
+  bzero(buffer, 256);
 
   // ---End Test
 

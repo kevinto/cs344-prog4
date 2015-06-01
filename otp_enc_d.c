@@ -12,6 +12,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h>
+#include <netdb.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+void ScanBufferForInvalidChars(char *buffer, int bufferSize);
 
 void error(const char *msg)
 {
@@ -88,47 +95,71 @@ int main(int argc, char *argv[])
     }
 
     bzero(buffer, 256);
-    // n = read(newsockfd,buffer,9);
-    // if (n < 0)
-    // {
-    //     error("otp_enc_d: ERROR reading from socket");
-    // }
-
-    // This does not work for large file sizes
-    // while (1) // http://geeky.altervista.org/blog/receive-tcp-packets-from-a-socket-c-language/?doing_wp_cron=1432966436.4647989273071289062500
-    // {
-    //   n = read(newsockfd, buffer, 1);
-    //   if (n < 0) error("ERROR reading from socket");
-    //   fflush(stdout);
-
-    //   if (n == 0 || buffer[0] == ';')
-    //   {
-    //     break;
-    //   }
-
-    //   // This causes the flow not to work anymore
-    //   // printf("%c", buffer[0]);
-    // }
-
-    // TODO figure out how to save what is sent through
-
-    // This is the block to write back messages to the client
-    // printf("Here is the message: %s\n", buffer);
-    // bzero(buffer, 256);
-    // n = write(newsockfd, "I got your message", 18);
-    // if (n < 0)
-    // {
-    //   error("ERROR writing to socket");
-    // }
 
     // Get the file size
     recv(newsockfd, buffer, 255, 0);
     file_size = atoi(buffer);
     printf("otp_enc_d: get file size: %d bytes\n", file_size);
 
+    // Open the recieving file for writing
+    received_file = fopen("filetorecieve.txt", "w");
+    if (received_file == NULL)
+    {
+      printf("client: Failed to open file \n");
+
+      exit(1);
+    }
+
+    // Get the file data and save into a file
+    bzero(buffer, 256);
+    remain_data = file_size;
+    while (((n = recv(newsockfd, buffer, 1, 0)) > 0) && (remain_data > 0))
+    {
+      if (buffer[0] == '\0')
+      {
+        continue;
+      }
+
+      fwrite(buffer, sizeof(char), n, received_file);
+      remain_data -= n;
+      printf("Receive %d bytes and we hope :- %d bytes\n", n, remain_data);
+    }
+
+    fclose(received_file);
+
+    // Open file and try to print it
+    // Open the recieving file for writing
+    // received_file = fopen("filetorecieve.txt", O_RDONLY);
+    // if (received_file == NULL)
+    // {
+    //   printf("client: Failed to open file \n");
+
+    //   exit(1);
+    // }
+
+    // printf("trying to print\n");
+    // int c;
+    // if (received_file) {
+    //   while ((c = getc(received_file)) != EOF)
+    //     putchar(c);
+    //   fclose(received_file);
+    // }
+
     close(newsockfd);
   }
 
   close(sockfd);
   return 0;
+}
+
+void ScanBufferForInvalidChars(char *buffer, int bufferSize)
+{
+  int i;
+  for (i = 0; i < bufferSize; i++)
+  {
+    if (buffer[i] == '\0')
+    {
+      buffer[i] = ';';
+    }
+  }
 }
