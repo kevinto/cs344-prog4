@@ -147,7 +147,9 @@ void ProcessConnection(int socket)
 {
   int n, file_size, remain_data;
   char buffer[256];
-  FILE *received_file;
+
+  // FILE *received_file;
+  int received_file;
 
   bzero(buffer, 256);
 
@@ -157,16 +159,16 @@ void ProcessConnection(int socket)
   printf("otp_enc_d: get file size: %d bytes\n", file_size);
 
   // TODO: implement tempfile stuff
-  // int tempfd = GetTempFD();
+  received_file = GetTempFD();
 
   // Open the recieving file for writing
-  received_file = fopen("filetorecieve.txt", "w");
-  if (received_file == NULL)
-  {
-    printf("client: Failed to open file \n");
+  // received_file = fopen("filetorecieve.txt", "w");
+  // if (received_file == NULL)
+  // {
+  //   printf("client: Failed to open file \n");
 
-    exit(1);
-  }
+  //   exit(1);
+  // }
 
   // Get the file data and save into a file 1 character at a time
   bzero(buffer, 256);
@@ -179,12 +181,40 @@ void ProcessConnection(int socket)
       continue;
     }
 
-    fwrite(buffer, sizeof(char), n, received_file);
+    // fwrite(buffer, sizeof(char), n, received_file);
+    errno = 0;
+    if (-1 == write(received_file, buffer, 1))
+    {
+      printf("write failed with error [%s]\n", strerror(errno));
+    }
+
     remain_data -= n;
     // printf("Receive %d bytes and we hope :- %d bytes\n", n, remain_data);
   }
 
-  fclose(received_file);
+  errno = 0;
+  // rewind the stream pointer to the start of temporary file
+  if (-1 == lseek(received_file, 0, SEEK_SET))
+  {
+    printf("\n lseek failed with error [%s]\n", strerror(errno));
+  }
+
+  // errno = 0;
+  // if (read(received_file, buffer, 10) < 11)
+  // {
+  //   printf("\n read failed with error [%s]\n", strerror(errno));
+  // }
+  while (read(received_file, buffer, 1) > 0)
+  {
+    printf("%s", buffer);
+  }
+
+  //Show whatever is read
+  printf("\n Data read back from temporary file is [%s]\n", buffer);
+
+  // fclose(received_file);
+  close(received_file);
+
   close(socket);
 }
 
@@ -210,7 +240,7 @@ int GetTempFD()
 {
   char tempFileNameBuffer[32];
   char buffer[24];
-  int filedes = -1;
+  int filedes;
 
   // Zero out the buffers
   bzero(tempFileNameBuffer, sizeof(tempFileNameBuffer));
@@ -241,13 +271,15 @@ int GetTempFD()
   //   return 1;
   // }
 
-  // // rewind the stream pointer to the start of temporary file
-  // if (-1 == lseek(filedes, 0, SEEK_SET))
+  // int count;
+  // if ( (count = read(filedes, buffer, 11)) < 11 )
   // {
-  //   printf("\n lseek failed with error [%s]\n", strerror(errno));
+  //   printf("\n read failed with error [%s]\n", strerror(errno));
   //   return 1;
   // }
 
+  // Show whatever is read
+  // printf("\n Data read back from temporary file is [%s]\n", buffer);
   return filedes;
 
   // errno = 0;
