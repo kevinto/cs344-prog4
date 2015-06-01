@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
-  int plaintextTempFd, plaintextFileSize;//, keyTempFd, keyFileSize;
+  int plaintextTempFd, plaintextFileSize, keyTempFd, keyFileSize;
 
   // ------ Get plaintext data ----------------
   plaintextTempFd = GetTempFD(); // Create temp file to hold the recieved data
@@ -159,12 +159,12 @@ void ProcessConnection(int socket)
   printf("plaintext: %s\n", plaintextString); // For debug only
   
   // ------ Get key data ----------------
-  // keyTempFd = GetTempFD(); // Create temp file to hold the recieved data
-  // keyFileSize = ReceiveClientFile(socket, keyTempFd);
+  keyTempFd = GetTempFD(); // Create temp file to hold the recieved data
+  keyFileSize = ReceiveClientFile(socket, keyTempFd);
 
-  // char *keyString = malloc(keyFileSize + 1);
-  // PutFileIntoString(keyString, keyFileSize, keyTempFd);
-  // printf("plaintext: %s\n", keyString); // For debug only
+  char *keyString = malloc(keyFileSize + 1);
+  PutFileIntoString(keyString, keyFileSize, keyTempFd);
+  printf("key: %s\n", keyString); // For debug only
 
   // Think about how big the encypted string is...
   // DoEncryption(plaintextString, plaintextFileSize, keyString, keyStringSize, encryptedString);
@@ -187,6 +187,16 @@ int ReceiveClientFile(int socket, int tempFd)
 
   // Get the file size
   recv(socket, buffer, 255, 0);
+  // read(socket, buffer, 255); // alternative to the above
+
+  // This just oversizes it
+  // int buflen;
+  // n = read(socket, (char*)&buflen, sizeof(buflen));
+  // if (n < 0) error("ERROR reading from socket");
+  // buflen = ntohl(buflen);
+  // printf("buflen: %d\n", buflen);
+  // file_size = buflen;
+
   file_size = atoi(buffer);
   // printf("otp_enc_d: get file size: %d bytes\n", file_size); // For debug
 
@@ -227,6 +237,7 @@ int ReceiveClientFile(int socket, int tempFd)
   // }
   // printf("\n");
 
+  bzero(buffer, 256);
   return file_size;
 }
 
