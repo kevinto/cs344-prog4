@@ -183,9 +183,9 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
   while (((sent_bytes = sendfile(sockfd, fd, &offset, BUFSIZ)) > 0) && (remain_data > 0)) 
   {
     fflush(stdout);
-    printf("1. client sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+    // printf("1. client sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
     remain_data -= sent_bytes;
-    printf("2. clint sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
+    // printf("2. clint sent %d bytes from file's data, offset is now : %d and remaining data = %d\n", sent_bytes, offset, remain_data);
   }
 
   bzero(buffer, 256);

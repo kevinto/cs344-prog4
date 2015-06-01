@@ -17,9 +17,16 @@
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 void ProcessConnection(int socket);
 void error(const char *msg);
+
+// Signal handler to reap zombie processes
+static void wait_for_child(int sig)
+{
+  while (waitpid(-1, NULL, WNOHANG) > 0);
+}
 
 /**************************************************************
  * * Entry:
@@ -34,15 +41,10 @@ void error(const char *msg);
  * ***************************************************************/
 int main(int argc, char *argv[])
 {
-  // int sockfd, newsockfd, portno, n, file_size, remain_data, pid;
-  // socklen_t clilen;
-  // char buffer[256];
-  // struct sockaddr_in serv_addr, cli_addr;
-  // FILE *received_file;
-
   int sockfd, newsockfd, portno, pid;
   socklen_t clilen;
   struct sockaddr_in serv_addr, cli_addr;
+  struct sigaction sa;
 
   if (argc < 2)
   {
@@ -79,6 +81,15 @@ int main(int argc, char *argv[])
   // Listens to the socket for connections. Max of 5 connections
   // queued
   listen(sockfd, 5);
+
+  // Set up the signal handler
+  sa.sa_handler = wait_for_child;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART;
+  if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+    perror("sigaction");
+    return 1;
+  }
 
   // Get client connection
   while (1)
@@ -118,6 +129,18 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+/**************************************************************
+ * * Entry:
+ * *  socket - the socket file descriptor
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  This code gets run in the forked process to handle the actual
+ * *  server processing of the client request.
+ * *
+ * ***************************************************************/
 void ProcessConnection(int socket)
 {
   int n, file_size, remain_data;
@@ -158,9 +181,19 @@ void ProcessConnection(int socket)
 
   fclose(received_file);
   close(socket);
-  sleep(10);
 }
 
+/**************************************************************
+ * * Entry:
+ * *  msg - the message to print along with the error
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  This is the wrapper for the error handler.
+ * *
+ * ***************************************************************/
 void error(const char *msg)
 {
   perror(msg);
