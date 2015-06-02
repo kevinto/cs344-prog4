@@ -190,16 +190,9 @@ void SendFileToServer(int sockfd, char *fileName)
 
 	// Get the plaintext file size
 	sprintf(fileSizeString, "%d", file_stat.st_size);
-	
-	// alternative	
-	// fileSizeInt = atoi(fileSizeString);
-	// printf("filesize: %d\n", fileSizeInt);
-	// fileSizeInt = htonl(fileSizeInt);
-	// n = write(sockfd, (char*)&fileSizeInt, sizeof(fileSizeInt));
 
 	// Send the plaintext file size to the server first
 	n = send(sockfd, fileSizeString, sizeof(fileSizeString), 0);
-	// n = write(sockfd, file_size, sizeof(file_size));
 	if (n < 0)
 	{
 		printf("otp_enc: Error on sending initial file size\n");

@@ -189,14 +189,6 @@ int ReceiveClientFile(int socket, int tempFd)
   recv(socket, buffer, 255, 0);
   // read(socket, buffer, 255); // alternative to the above
 
-  // This just oversizes it
-  // int buflen;
-  // n = read(socket, (char*)&buflen, sizeof(buflen));
-  // if (n < 0) error("ERROR reading from socket");
-  // buflen = ntohl(buflen);
-  // printf("buflen: %d\n", buflen);
-  // file_size = buflen;
-
   file_size = atoi(buffer);
   // printf("otp_enc_d: get file size: %d bytes\n", file_size); // For debug
 
