@@ -30,6 +30,8 @@ void error(const char *msg);
 void ProcessConnection(int socket);
 int GetTempFD();
 void ReceiveClientFile(int socket, FILE *tempFilePointer);
+void SendFileToClient(int socket, int tempFilePointer);
+void AddNewLineToEndOfFile(FILE *filePointer);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -171,7 +173,6 @@ void ProcessConnection(int socket)
 	// Both plaintext and key are in one file
 	int receiveTempFilePointer = GetTempFD();
 	FILE *fr = fdopen(receiveTempFilePointer, "w");
-	sleep(10);
 	if (fr == 0)
 	{
 		printf("File temp receive cannot be opened file on server.\n");
@@ -180,13 +181,8 @@ void ProcessConnection(int socket)
 	{
 		ReceiveClientFile(socket, fr);
 	}
-
-	// Set file pointer to the start of the temp file
-	if (fseek(fr, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-
+	AddNewLineToEndOfFile(fr);
+	
 	// Test code to see the temp file
 	// int count;
 	// char buffer[12];
@@ -202,13 +198,22 @@ void ProcessConnection(int socket)
 	// TODO - do processing on the recieved file
 
 	/* Send File to Client */
+	SendFileToClient(socket, receiveTempFilePointer);
+
+	close(socket);
+
+	printf("[Server] Connection with Client closed. Server will wait now...\n");
+}
+
+void SendFileToClient(int socket, int tempFilePointer)
+{
 	// char* fs_name = "receive";
 	char sdbuf[LENGTH]; // Send buffer
 	// printf("[Server] Sending %s to the Client...", fs_name);
 	printf("[Server] Sending received file to the Client...");
 	// FILE *fs = fopen(fs_name, "r");
 	// if (fs == NULL)
-	if (fr == NULL)
+	if (tempFilePointer == 0)
 	{
 		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
 		fprintf(stderr, "ERROR: File temp received not found on server.");
@@ -219,7 +224,7 @@ void ProcessConnection(int socket)
 	int fs_block_sz;
 	// while ((fs_block_sz = fread(sdbuf, sizeof(char), LENGTH, fs)) > 0)
 	// while ((fs_block_sz = fread(sdbuf, sizeof(char), LENGTH, fr)) > 0)
-	while ((fs_block_sz = read(receiveTempFilePointer, sdbuf, LENGTH)) > 0)
+	while ((fs_block_sz = read(tempFilePointer, sdbuf, LENGTH)) > 0)
 	{
 		if (send(socket, sdbuf, fs_block_sz, 0) < 0)
 		{
@@ -230,12 +235,7 @@ void ProcessConnection(int socket)
 		bzero(sdbuf, LENGTH);
 	}
 	printf("Ok sent to client!\n");
-
-	close(socket);
-	fclose(fr);
-
-	printf("[Server] Connection with Client closed. Server will wait now...\n");
-	// while (waitpid(-1, NULL, WNOHANG) > 0);
+	// fclose(fr);
 }
 
 void ReceiveClientFile(int socket, FILE *tempFilePointer)
@@ -334,4 +334,24 @@ void error(const char *msg)
 {
 	perror(msg);
 	exit(1);
+}
+
+void AddNewLineToEndOfFile(FILE *filePointer)
+{
+	char newlineBuffer[1] = "\n";
+
+	// Set the file pointer to the end of the file
+	if (fseek(filePointer, 0, SEEK_END) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Write the newline char to the end of the file
+	fwrite(newlineBuffer, sizeof(char), 1, filePointer);
+
+	// Set file pointer to the start of the temp file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
 }

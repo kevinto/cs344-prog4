@@ -40,8 +40,13 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 void RemoveNewLineAndAddNullTerm(char *fileName);
 void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 void ScanInvalidCharacters(char *stringToCheck, int stringLength);
-void SendFileToServer(int sockfd, char *fileName);
+void SendFileToServer(int sockfd, int tempFileDesc);
 void ReceiveFileFromServer(int sockfd, char *fileName);
+int CombineTwoFiles(char *fileOneName, char *fileTwoName);
+int GetTempFD();
+void AddNewLineToEndOfFile(FILE *filePointer);
+void OutputTempFile(int tempFileDesc);
+void BufRemoveNewLineAndAddNullTerm(char *buffer, int bufferSize);
 
 /**************************************************************
  * * Entry:
@@ -168,8 +173,16 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 		printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber);
 	}
 
-	// // Send file to server
-	SendFileToServer(sockfd, plainTextFileName); // Send the plaintext file
+	int resultTempFd = CombineTwoFiles(plainTextFileName, keyFileName);
+	// FILE *combinedFilePointer = fdopen(resultTempFd, "rb");
+	// if (combinedFilePointer == 0)
+	// {
+	// 	printf("[otp_enc] Could not open combined temp file.\n");
+	// }
+	// OutputTempFile(resultTempFd);
+	// Send file to server -- TODO: convert the second parameter to a file pointer to the file
+	SendFileToServer(sockfd, resultTempFd); // Send the combined file
+
 
 	// Receive file from server
 	ReceiveFileFromServer(sockfd, "final");
@@ -224,30 +237,100 @@ void ReceiveFileFromServer(int sockfd, char *fileName)
 	}
 }
 
-void SendFileToServer(int sockfd, char *fileName)
+// void SendFileToServer(int sockfd, char *fileName)
+void SendFileToServer(int sockfd, int tempFileDesc)
 {
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
 
-	FILE *filePointer = fopen(fileName, "rb");
-	if (filePointer == NULL)
-	{
-		printf("ERROR: File %s not found.\n", fileName);
-		exit(1);
-	}
+	// OutputTempFile(tempFileDesc);
+	// FILE *filePointer = fopen(fileName, "rb");
+	// FILE *filePointer = fdopen(tempFileDesc, "rb");
+	// if (filePointer == NULL)
+	// {
+	// 	printf("[otp_enc] ERROR: File not found to be sent.\n");
+	// 	exit(1);
+	// }
 
-	printf("[otp_enc] Sending %s to the Server... ", fileName);
+	printf("[otp_enc] Sending file to the Server... ");
 	int sendSize;
-	while ((sendSize = fread(sendBuffer, sizeof(char), LENGTH, filePointer)) > 0)
+	// while ((sendSize = fread(sendBuffer, sizeof(char), LENGTH, filePointer)) > 0)
+	while ((sendSize = read(tempFileDesc, sendBuffer, sizeof(sendBuffer))) > 0)
 	{
 		if (send(sockfd, sendBuffer, sendSize, 0) < 0)
 		{
-			printf("[otp_enc] Error: Failed to send file %s.", fileName);
+			printf("[otp_enc] Error: Failed to send file.\n");
 			break;
 		}
 		bzero(sendBuffer, LENGTH);
 	}
-	printf("Ok File %s from Client was Sent!\n", fileName);
+	printf("Ok File from Client was Sent!\n");
+
+	// fclose(filePointer);
+}
+
+int CombineTwoFiles(char *fileOneName, char *fileTwoName)
+{
+	char readBuffer[LENGTH];
+	int sizeRead = 0;
+	FILE *fileOnePointer = fopen(fileOneName, "rb");
+	FILE *fileTwoPointer = fopen(fileTwoName, "rb");
+	int tempFD = GetTempFD();
+
+	// Add the contents of the first file to the temp file.
+	// Also added a semi-colon delimiter at the end.
+	bzero(readBuffer, LENGTH);
+	while ((sizeRead = fread(readBuffer, sizeof(char), LENGTH, fileOnePointer)) > 0)
+	{
+		BufRemoveNewLineAndAddNullTerm(readBuffer, LENGTH); // Removes new line and add null term if needed
+		if (write(tempFD, readBuffer, sizeRead - 1) == -1) // Write to the temp file
+		{
+			printf("[otp_enc] Error in combining plaintext and key\n");
+		}
+		bzero(readBuffer, LENGTH);
+	}
+
+	// Add a semicolon at the end of the first file
+	bzero(readBuffer, LENGTH);
+	strncpy(readBuffer, ";", 1);
+	if (write(tempFD, readBuffer, 1) == -1)
+	{
+		printf("[otp_enc] Error in combining plaintext and key\n");
+	}
+
+	// Add the contents of the second file to the temp file.
+	// Also added a semi-colon delimiter at the end.
+	bzero(readBuffer, LENGTH);
+	while ((sizeRead = fread(readBuffer, sizeof(char), LENGTH, fileTwoPointer)) > 0)
+	{
+		BufRemoveNewLineAndAddNullTerm(readBuffer, LENGTH); // Removes new line and add null term if needed
+		if (write(tempFD, readBuffer, sizeRead - 1) == -1) // Write to the temp file
+		{
+			printf("[otp_enc] Error in combining plaintext and key\n");
+		}
+		bzero(readBuffer, LENGTH);
+	}
+
+	// Add a semicolon at the end of the second file
+	bzero(readBuffer, LENGTH);
+	strncpy(readBuffer, ";", 1);
+	if (write(tempFD, readBuffer, 1) == -1)
+	{
+		printf("[otp_enc] Error in combining plaintext and key\n");
+	}
+
+	// Reset the file pointer for the temp file	
+	if (-1 == lseek(tempFD, 0, SEEK_SET))
+	{
+		printf("File pointer reset for combined file failed\n");
+	}
+
+	// Used for debugging only
+	// OutputTempFile(tempFD);
+	fclose(fileOnePointer);
+	fclose(fileTwoPointer);
+
+	return tempFD;
 }
 
 /**************************************************************
@@ -336,6 +419,107 @@ void ScanInvalidCharacters(char *stringValue, int stringLength)
 		{
 			printf("otp_enc error: input contains bad characters\n");
 			exit(1);
+		}
+	}
+}
+
+// found here: http://www.thegeekstuff.com/2012/06/c-temporary-files/
+// how to use the temp file with fwrite - http://www.it.uc3m.es/abel/as/PRJ/M5/inclass_en.html
+int GetTempFD()
+{
+	char tempFileNameBuffer[32];
+	char buffer[24];
+	int filedes;
+
+	// Zero out the buffers
+	bzero(tempFileNameBuffer, sizeof(tempFileNameBuffer));
+	bzero(buffer, sizeof(buffer));
+
+	// Set up temp template
+	strncpy(tempFileNameBuffer, "/tmp/myTmpFile-XXXXXX", 21);
+	// strncpy(buffer, "Hello World", 11); // Need for test only
+
+	errno = 0;
+	// Create the temporary file, this function will replace the 'X's
+	filedes = mkstemp(tempFileNameBuffer);
+
+	// Call unlink so that whenever the file is closed or the program exits
+	// the temporary file is deleted
+	unlink(tempFileNameBuffer);
+
+	if (filedes < 1)
+	{
+		printf("\n Creation of temp file failed with error [%s]\n", strerror(errno));
+		return 1;
+	}
+
+	return filedes;
+}
+
+void AddNewLineToEndOfFile(FILE *filePointer)
+{
+	char newlineBuffer[1] = "\n";
+
+	// Set the file pointer to the end of the file
+	if (fseek(filePointer, 0, SEEK_END) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Write the newline char to the end of the file
+	fwrite(newlineBuffer, sizeof(char), 1, filePointer);
+
+	// Set file pointer to the start of the temp file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+}
+
+void OutputTempFile(int tempFileDesc)
+{
+	// Do not need to close open file because the temp
+	// file will auto delete at program exit.
+	FILE *filePointer = fdopen(tempFileDesc, "rb");
+
+	// Set file pointer to beginning of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	printf("test write:....\n");
+	if (filePointer) {
+		int c;
+		while ((c = fgetc(filePointer)) != EOF)
+		{
+			putchar(c);
+		}
+	}
+
+	// Set file pointer to beginning of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+}
+
+// Removes new lines for buffers
+void BufRemoveNewLineAndAddNullTerm(char *buffer, int bufferSize)
+{
+	int i;
+	for (i = 0; i < bufferSize; i++)
+	{
+		// Exit if we reached a null term
+		if (buffer[i] == '\0')
+		{
+			return;
+		}
+
+		// Replace new line with null term
+		if (buffer[i] == '\n')
+		{
+			buffer[i] = '\0';
 		}
 	}
 }
