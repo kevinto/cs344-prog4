@@ -36,6 +36,7 @@ int GetSizeOfPlaintext(FILE *filePointer);
 int GetSizeOfKeyText(FILE *filePointer);
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
+void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -187,41 +188,55 @@ void ProcessConnection(int socket)
 	}
 	AddNewLineToEndOfFile(filePointer);
 
-	// Get the string from the file. Remember plainTextSize includes the newline
-	//  character at the end of the file.
+	// TODO - KEEP track of threads
+
+	// Get the plain text from the file and save to a string
 	int plainTextSize = GetSizeOfPlaintext(filePointer);
 	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(plainTextString, plainTextSize + 1);
 	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
 	// printf("plainTextString: %s\n", plainTextString); // For debug only
 
-	// TODO - Save key to heap
+	// Get the plain text from the file and save to a string
 	int keyTextSize = GetSizeOfKeyText(filePointer);
 	char *keyTextString = malloc(keyTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(keyTextString, keyTextSize + 1);
 	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
-	printf("keyTextString: %s\n", keyTextString);
-	printf("keyTextSize: %d\n", keyTextSize);
+	// printf("keyTextString: %s\n", keyTextString);
 
-	// TODO - KEEP track of threads
 	// TODO - do processing on the recieved file
+	// calculate size of the encypted text
+	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
+	bzero(cipherText, plainTextSize + 1);
+	EncyptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
 
-	// Set file pointer to the start of the file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	int resultTempFD = 	GetTempFD();
+	FILE *resultFilePointer = fdopen(resultTempFD, "w+");
+	if (resultFilePointer != 0)
 	{
-		printf("Received file pointer reset failed\n");
+		printf("putting to file: %s\n", cipherText);
+		fputs(cipherText, resultFilePointer);
+		AddNewLineToEndOfFile(resultFilePointer);
 	}
 
-	/* Send File to Client */
-	SendFileToClient(socket, receiveTempFilePointer);
+	// Send File to Client 
+	// // Set file pointer to the start of the file
+	// SendFileToClient(socket, receiveTempFilePointer);
+	SendFileToClient(socket, resultTempFD);
 
 	free(plainTextString);
 	free(keyTextString);
+	free(cipherText);
 	fclose(filePointer);
 	close(receiveTempFilePointer);
 	close(socket);
 
 	printf("[Server] Connection with Client closed. Server will wait now...\n");
+}
+
+void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
+{
+	strncpy(cipherText, "blah", plainTextSize);
 }
 
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer)
