@@ -33,7 +33,9 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer);
 void SendFileToClient(int socket, int tempFilePointer);
 void AddNewLineToEndOfFile(FILE *filePointer);
 int GetSizeOfPlaintext(FILE *filePointer);
+int GetSizeOfKeyText(FILE *filePointer);
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
+void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -185,32 +187,87 @@ void ProcessConnection(int socket)
 	}
 	AddNewLineToEndOfFile(filePointer);
 
-	// TODO - Save plain text to heap
-	int plainTextSize = GetSizeOfPlaintext(filePointer);
-	// printf("plainTextSize: %d\n", plainTextSize);
-
 	// Get the string from the file. Remember plainTextSize includes the newline
 	//  character at the end of the file.
+	int plainTextSize = GetSizeOfPlaintext(filePointer);
 	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(plainTextString, plainTextSize + 1);
 	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
-	printf("plainTextString: %s\n", plainTextString);
-	// fread(plainTextString, plainTextSize, 1, filePointer); // Get the string from the file
-	// fclose();
+	// printf("plainTextString: %s\n", plainTextString); // For debug only
 
 	// TODO - Save key to heap
+	int keyTextSize = GetSizeOfKeyText(filePointer);
+	char *keyTextString = malloc(keyTextSize + 1); // Allocates memory for the string taken from the file
+	bzero(keyTextString, keyTextSize + 1);
+	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
+	printf("keyTextString: %s\n", keyTextString);
+	printf("keyTextSize: %d\n", keyTextSize);
+
 	// TODO - KEEP track of threads
 	// TODO - do processing on the recieved file
+
+	// Set file pointer to the start of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
 
 	/* Send File to Client */
 	SendFileToClient(socket, receiveTempFilePointer);
 
 	free(plainTextString);
+	free(keyTextString);
 	fclose(filePointer);
 	close(receiveTempFilePointer);
 	close(socket);
 
 	printf("[Server] Connection with Client closed. Server will wait now...\n");
+}
+
+void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer)
+{
+	char readBuffer[LENGTH];
+	int i;
+	int fileTracker = 0;
+	int stringTracker = 0;
+	int foundFirstSemiColon = 0;
+
+	// Set file pointer to the start of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Count the number of characters
+	bzero(readBuffer, LENGTH);
+	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
+	{
+		// Loop through the buffer to count characters
+		for (i = 0; i < LENGTH; i++)
+		{
+			// Check if we found the first semicolon
+			if (!foundFirstSemiColon && readBuffer[i] == ';')
+			{
+				foundFirstSemiColon = 1;
+				continue;
+			}
+
+			if (foundFirstSemiColon)
+			{
+				keyTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
+				stringTracker++;
+				fileTracker++;
+			}
+
+			// Exit loop if we reached the end of the key length
+			if (fileTracker == (keyTextSize))
+			{
+				break;
+			}
+
+		}
+		bzero(readBuffer, LENGTH);
+	}
 }
 
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer)
@@ -245,6 +302,59 @@ void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *fileP
 		}
 		bzero(readBuffer, LENGTH);
 	}
+}
+
+int GetSizeOfKeyText(FILE *filePointer)
+{
+	char readBuffer[LENGTH];
+	int i;
+	int keyTextSize = 0;
+	int foundFirstSemiColon = 0;
+	int foundLastSemiColon = 0;
+
+	// Set file pointer to the start of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Count the number of characters
+	bzero(readBuffer, LENGTH);
+	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
+	{
+		// Loop through the buffer to count characters
+		for (i = 0; i < LENGTH; i++)
+		{
+			// Found the first semi-colon delimiter.
+			if ((foundFirstSemiColon == 0) && readBuffer[i] == ';')
+			{
+				foundFirstSemiColon = 1;
+				continue;
+			}
+
+			// Count the characters after the first semi-colon
+			if (foundFirstSemiColon)
+			{
+				// Found the file end semicolon. Exit.
+				if (readBuffer[i] == ';')
+				{
+					foundLastSemiColon = 1;
+					break;
+				}
+
+				keyTextSize++;
+			}
+		}
+		bzero(readBuffer, LENGTH);
+
+		if (foundLastSemiColon)
+		{
+			// Found the last semi-colon, exit out of the loop
+			break;
+		}
+	}
+
+	return keyTextSize;
 }
 
 int GetSizeOfPlaintext(FILE *filePointer)
