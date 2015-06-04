@@ -48,6 +48,7 @@ void AddNewLineToEndOfFile(FILE *filePointer);
 void OutputTempFile(int tempFileDesc);
 void BufRemoveNewLineAndAddSemiColon(char *buffer, int bufferSize);
 void CheckIfFileEndingValid(char *fileName);
+void SendHandshakeToServer(int sockfd);
 
 /**************************************************************
  * * Entry:
@@ -174,6 +175,9 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 		printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber);
 	}
 
+	// Send initial handshake message
+	SendHandshakeToServer(sockfd); // Send the combined file
+
 	CheckIfFileEndingValid(plainTextFileName);
 	CheckIfFileEndingValid(keyFileName);
 
@@ -190,10 +194,25 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	printf("[otp_enc] Connection lost.\n");
 }
 
+// void SendFileToServer(int sockfd, char *fileName)
+void SendHandshakeToServer(int sockfd)
+{
+	char sendBuffer[LENGTH];
+	bzero(sendBuffer, LENGTH);
+	strncpy(sendBuffer, "otp_enc", LENGTH);
+	// strncpy(sendBuffer, "otp_dec", LENGTH);
+
+	int sendSize = 7;
+	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
+	{
+		printf("[otp_enc] Error: Failed to send initial handshake.\n");
+	}
+}
+
 void CheckIfFileEndingValid(char *fileName)
 {
 	char readBuffer[LENGTH];
-	int i; 
+	int i;
 	int foundNewLineChar = 0;
 	FILE *filePointer = fopen(fileName, "rb+");
 
@@ -222,7 +241,7 @@ void CheckIfFileEndingValid(char *fileName)
 
 	if (!foundNewLineChar)
 	{
-		// New line character not found. Adding a new line character at the 
+		// New line character not found. Adding a new line character at the
 		// 	end of the file. We are at the end because the previous fread
 		//	call put the file pointer at the end of the file
 		char newLineChar[1] = "\n";
@@ -352,7 +371,7 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName)
 	// 	printf("[otp_enc] Error in combining plaintext and key\n");
 	// }
 
-	// Reset the file pointer for the temp file	
+	// Reset the file pointer for the temp file
 	if (-1 == lseek(tempFD, 0, SEEK_SET))
 	{
 		printf("File pointer reset for combined file failed\n");
@@ -537,7 +556,7 @@ void OutputTempFile(int tempFileDesc)
 	}
 }
 
-// Removes new lines and adds semicolons 
+// Removes new lines and adds semicolons
 void BufRemoveNewLineAndAddSemiColon(char *buffer, int bufferSize)
 {
 	int i;

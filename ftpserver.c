@@ -27,6 +27,9 @@
 #define LENGTH 512
 #define NUMBER_ALLOWED_CHARS 27 // Represents the number of different types of allowed characters
 
+// Global variable to track number of children
+int number_children = 0;
+
 void error(const char *msg);
 void ProcessConnection(int socket);
 int GetTempFD();
@@ -40,11 +43,13 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
+int ReceiveClientHandshake(int socket);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
 {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
+	number_children--;
 }
 
 /**************************************************************
@@ -140,6 +145,13 @@ int main (int argc, char *argv[])
 
 		// Create child process to handle processing
 		// TODO: need to limit to only 5 forks
+		//	-- children tracking works. need to set up how to reject client
+		// if (number_children == 5)
+		// {
+		// 	printf("too many children!!!!\n");
+		// }
+		number_children++;
+
 		pid = fork();
 		if (pid < 0)
 		{
@@ -175,7 +187,15 @@ int main (int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
-	// char receiveBuffer[LENGTH]; // Receiver buffer
+	/// TODO - We are in forked process now check the
+	// printf("child number: %d\n", number_children);
+	int precedeWithEnc = ReceiveClientHandshake(socket);
+	if (!precedeWithEnc)
+	{
+		printf("this is an invalid client\n");
+	}
+
+	// sleep(4); // TODO
 
 	// Receive the plaintext and key file from the client
 	// Both plaintext and key are in one file
@@ -191,8 +211,6 @@ void ProcessConnection(int socket)
 	}
 	AddNewLineToEndOfFile(filePointer);
 
-	// TODO - KEEP track of threads
-
 	// Get the plain text from the file and save to a string
 	int plainTextSize = GetSizeOfPlaintext(filePointer);
 	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
@@ -207,7 +225,6 @@ void ProcessConnection(int socket)
 	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
 	// printf("keyTextString: %s\n", keyTextString);
 
-	// TODO - do processing on the recieved file
 	// calculate size of the encypted text
 	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
 	bzero(cipherText, plainTextSize + 1);
@@ -236,10 +253,25 @@ void ProcessConnection(int socket)
 	printf("[Server] Connection with Client closed. Server will wait now...\n");
 }
 
+int ReceiveClientHandshake(int socket)
+{
+	char receiveBuffer[8]; // Receiver buffer
+	bzero(receiveBuffer, 8); // Clear out the buffer
+
+	recv(socket, receiveBuffer, LENGTH, 0);
+
+	if (strcmp(receiveBuffer, "otp_enc") == 0)
+	{
+		return 1; // Connection valid
+	}
+	else
+	{
+		return 0; // Received handshake from invalid client
+	}
+}
+
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
 {
-	// strncpy(cipherText, "blah", plainTextSize);
-
 	int i;
 	char currEncChar;
 	int currEncCharNumber;
