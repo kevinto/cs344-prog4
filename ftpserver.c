@@ -32,6 +32,8 @@ int GetTempFD();
 void ReceiveClientFile(int socket, FILE *tempFilePointer);
 void SendFileToClient(int socket, int tempFilePointer);
 void AddNewLineToEndOfFile(FILE *filePointer);
+int GetSizeOfPlaintext(FILE *filePointer);
+void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -172,37 +174,118 @@ void ProcessConnection(int socket)
 	// Receive the plaintext and key file from the client
 	// Both plaintext and key are in one file
 	int receiveTempFilePointer = GetTempFD();
-	FILE *fr = fdopen(receiveTempFilePointer, "w");
-	if (fr == 0)
+	FILE *filePointer = fdopen(receiveTempFilePointer, "w+");
+	if (filePointer == 0)
 	{
 		printf("File temp receive cannot be opened file on server.\n");
 	}
 	else
 	{
-		ReceiveClientFile(socket, fr);
+		ReceiveClientFile(socket, filePointer);
 	}
-	AddNewLineToEndOfFile(fr);
-	
-	// Test code to see the temp file
-	// int count;
-	// char buffer[12];
-	// bzero(buffer, 12);
-	// if ( (count = read(receiveTempFilePointer, buffer, 6)) < 6 )
-	// {
-	// 	printf("count: %d\n", count);
-	// 	printf("\n read failed with error [%s]\n", strerror(errno));
-	// }
-	// // Show whatever is read
-	// printf("\n Data read back from temporary file is [%s]\n", buffer);
+	AddNewLineToEndOfFile(filePointer);
 
+	// TODO - Save plain text to heap
+	int plainTextSize = GetSizeOfPlaintext(filePointer);
+	// printf("plainTextSize: %d\n", plainTextSize);
+
+	// Get the string from the file. Remember plainTextSize includes the newline
+	//  character at the end of the file.
+	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
+	bzero(plainTextString, plainTextSize + 1);
+	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
+	printf("plainTextString: %s\n", plainTextString);
+	// fread(plainTextString, plainTextSize, 1, filePointer); // Get the string from the file
+	// fclose();
+
+	// TODO - Save key to heap
+	// TODO - KEEP track of threads
 	// TODO - do processing on the recieved file
 
 	/* Send File to Client */
 	SendFileToClient(socket, receiveTempFilePointer);
 
+	free(plainTextString);
+	fclose(filePointer);
+	close(receiveTempFilePointer);
 	close(socket);
 
 	printf("[Server] Connection with Client closed. Server will wait now...\n");
+}
+
+void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer)
+{
+	char readBuffer[LENGTH];
+	int i;
+	int fileTracker = 0;
+	int stringTracker = 0;
+
+	// Set file pointer to the start of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Count the number of characters
+	bzero(readBuffer, LENGTH);
+	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
+	{
+		// Loop through the buffer to count characters
+		for (i = 0; i < LENGTH; i++)
+		{
+			// Exit loop if we reached the end of the plain text portion of the file
+			if (fileTracker == (plainTextSize))
+			{
+				break;
+			}
+
+			plainTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
+			stringTracker++;
+			fileTracker++;
+		}
+		bzero(readBuffer, LENGTH);
+	}
+}
+
+int GetSizeOfPlaintext(FILE *filePointer)
+{
+	char readBuffer[LENGTH];
+	int i;
+	int fileSize = 0;
+	int foundFirstSemiColon = 0;
+
+	// Set file pointer to the start of the file
+	if (fseek(filePointer, 0, SEEK_SET) == -1)
+	{
+		printf("Received file pointer reset failed\n");
+	}
+
+	// Count the number of characters
+	bzero(readBuffer, LENGTH);
+	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
+	{
+		// Loop through the buffer to count characters
+		for (i = 0; i < LENGTH; i++)
+		{
+			// Found the semi-colon delimiter. Break from loop
+			if (readBuffer[i] == ';')
+			{
+				foundFirstSemiColon = 1;
+				break;
+			}
+
+			fileSize++; // Keep track of the file size
+		}
+		bzero(readBuffer, LENGTH);
+
+		if (foundFirstSemiColon)
+		{
+			// Found the delimiter. Break out of the loop
+			break;
+		}
+	}
+
+	return fileSize;
 }
 
 void SendFileToClient(int socket, int tempFilePointer)
@@ -222,8 +305,6 @@ void SendFileToClient(int socket, int tempFilePointer)
 
 	bzero(sdbuf, LENGTH);
 	int fs_block_sz;
-	// while ((fs_block_sz = fread(sdbuf, sizeof(char), LENGTH, fs)) > 0)
-	// while ((fs_block_sz = fread(sdbuf, sizeof(char), LENGTH, fr)) > 0)
 	while ((fs_block_sz = read(tempFilePointer, sdbuf, LENGTH)) > 0)
 	{
 		if (send(socket, sdbuf, fs_block_sz, 0) < 0)

@@ -46,7 +46,8 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName);
 int GetTempFD();
 void AddNewLineToEndOfFile(FILE *filePointer);
 void OutputTempFile(int tempFileDesc);
-void BufRemoveNewLineAndAddNullTerm(char *buffer, int bufferSize);
+void BufRemoveNewLineAndAddSemiColon(char *buffer, int bufferSize);
+void CheckIfFileEndingValid(char *fileName);
 
 /**************************************************************
  * * Entry:
@@ -173,22 +174,62 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 		printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber);
 	}
 
+	CheckIfFileEndingValid(plainTextFileName);
+	CheckIfFileEndingValid(keyFileName);
+
 	int resultTempFd = CombineTwoFiles(plainTextFileName, keyFileName);
-	// FILE *combinedFilePointer = fdopen(resultTempFd, "rb");
-	// if (combinedFilePointer == 0)
-	// {
-	// 	printf("[otp_enc] Could not open combined temp file.\n");
-	// }
-	// OutputTempFile(resultTempFd);
-	// Send file to server -- TODO: convert the second parameter to a file pointer to the file
+	// OutputTempFile(resultTempFd); // debug code, there is a problem with files that have no EOL.
+
 	SendFileToServer(sockfd, resultTempFd); // Send the combined file
 
-
-	// Receive file from server
+	// Receive result file from server
+	// TODO - Implement temp file to output
 	ReceiveFileFromServer(sockfd, "final");
 
 	close (sockfd);
 	printf("[otp_enc] Connection lost.\n");
+}
+
+void CheckIfFileEndingValid(char *fileName)
+{
+	char readBuffer[LENGTH];
+	int i; 
+	int foundNewLineChar = 0;
+	FILE *filePointer = fopen(fileName, "rb+");
+
+	// Read all the contents of the file checking for a new line character
+	bzero(readBuffer, LENGTH);
+	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
+	{
+		// Loop through the buffer to check for the correct characters
+		for (i = 0; i < LENGTH; i++)
+		{
+			// Found the new line char. This file is valid. exit.
+			if (readBuffer[i] == '\n')
+			{
+				foundNewLineChar = 1;
+				break;
+			}
+
+			// Hit the end of the file.
+			if (readBuffer[i] == '\0')
+			{
+				break;
+			}
+		}
+		bzero(readBuffer, LENGTH);
+	}
+
+	if (!foundNewLineChar)
+	{
+		// New line character not found. Adding a new line character at the 
+		// 	end of the file. We are at the end because the previous fread
+		//	call put the file pointer at the end of the file
+		char newLineChar[1] = "\n";
+		fwrite (newLineChar, sizeof(char), sizeof(newLineChar), filePointer);
+	}
+
+	fclose(filePointer);
 }
 
 void ReceiveFileFromServer(int sockfd, char *fileName)
@@ -282,20 +323,12 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName)
 	bzero(readBuffer, LENGTH);
 	while ((sizeRead = fread(readBuffer, sizeof(char), LENGTH, fileOnePointer)) > 0)
 	{
-		BufRemoveNewLineAndAddNullTerm(readBuffer, LENGTH); // Removes new line and add null term if needed
-		if (write(tempFD, readBuffer, sizeRead - 1) == -1) // Write to the temp file
+		BufRemoveNewLineAndAddSemiColon(readBuffer, LENGTH); // Removes new line and add null term if needed
+		if (write(tempFD, readBuffer, sizeRead) == -1) // Write to the temp file
 		{
 			printf("[otp_enc] Error in combining plaintext and key\n");
 		}
 		bzero(readBuffer, LENGTH);
-	}
-
-	// Add a semicolon at the end of the first file
-	bzero(readBuffer, LENGTH);
-	strncpy(readBuffer, ";", 1);
-	if (write(tempFD, readBuffer, 1) == -1)
-	{
-		printf("[otp_enc] Error in combining plaintext and key\n");
 	}
 
 	// Add the contents of the second file to the temp file.
@@ -303,21 +336,21 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName)
 	bzero(readBuffer, LENGTH);
 	while ((sizeRead = fread(readBuffer, sizeof(char), LENGTH, fileTwoPointer)) > 0)
 	{
-		BufRemoveNewLineAndAddNullTerm(readBuffer, LENGTH); // Removes new line and add null term if needed
-		if (write(tempFD, readBuffer, sizeRead - 1) == -1) // Write to the temp file
+		BufRemoveNewLineAndAddSemiColon(readBuffer, LENGTH); // Removes new line and add null term if needed
+		if (write(tempFD, readBuffer, sizeRead) == -1) // Write to the temp file
 		{
 			printf("[otp_enc] Error in combining plaintext and key\n");
 		}
 		bzero(readBuffer, LENGTH);
 	}
 
-	// Add a semicolon at the end of the second file
-	bzero(readBuffer, LENGTH);
-	strncpy(readBuffer, ";", 1);
-	if (write(tempFD, readBuffer, 1) == -1)
-	{
-		printf("[otp_enc] Error in combining plaintext and key\n");
-	}
+	// // Add a semicolon at the end of the second file
+	// bzero(readBuffer, LENGTH);
+	// strncpy(readBuffer, ";", 1);
+	// if (write(tempFD, readBuffer, 1) == -1)
+	// {
+	// 	printf("[otp_enc] Error in combining plaintext and key\n");
+	// }
 
 	// Reset the file pointer for the temp file	
 	if (-1 == lseek(tempFD, 0, SEEK_SET))
@@ -504,8 +537,8 @@ void OutputTempFile(int tempFileDesc)
 	}
 }
 
-// Removes new lines for buffers
-void BufRemoveNewLineAndAddNullTerm(char *buffer, int bufferSize)
+// Removes new lines and adds semicolons 
+void BufRemoveNewLineAndAddSemiColon(char *buffer, int bufferSize)
 {
 	int i;
 	for (i = 0; i < bufferSize; i++)
@@ -519,7 +552,7 @@ void BufRemoveNewLineAndAddNullTerm(char *buffer, int bufferSize)
 		// Replace new line with null term
 		if (buffer[i] == '\n')
 		{
-			buffer[i] = '\0';
+			buffer[i] = ';';
 		}
 	}
 }
