@@ -25,6 +25,7 @@
 
 #define LISTEN_QUEUE 5
 #define LENGTH 512
+#define NUMBER_ALLOWED_CHARS 27 // Represents the number of different types of allowed characters
 
 void error(const char *msg);
 void ProcessConnection(int socket);
@@ -37,6 +38,8 @@ int GetSizeOfKeyText(FILE *filePointer);
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
+int GetCharToNumberMapping(char character);
+char GetNumberToCharMapping(int number);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -219,8 +222,7 @@ void ProcessConnection(int socket)
 		AddNewLineToEndOfFile(resultFilePointer);
 	}
 
-	// Send File to Client 
-	// // Set file pointer to the start of the file
+	// Send File to Client
 	// SendFileToClient(socket, receiveTempFilePointer);
 	SendFileToClient(socket, resultTempFD);
 
@@ -236,7 +238,55 @@ void ProcessConnection(int socket)
 
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
 {
-	strncpy(cipherText, "blah", plainTextSize);
+	// strncpy(cipherText, "blah", plainTextSize);
+
+	int i;
+	char currEncChar;
+	int currEncCharNumber;
+	int currPlainTextNumber;
+	int currKeyTextNumber;
+	for (i = 0; i < plainTextSize; i++)
+	{
+		currPlainTextNumber = GetCharToNumberMapping(plainTextString[i]);
+		currKeyTextNumber = GetCharToNumberMapping(keyTextString[i]);
+		currEncCharNumber = (currPlainTextNumber + currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
+		currEncChar = GetNumberToCharMapping(currEncCharNumber);
+
+		cipherText[i] = currEncChar;
+		// For debugging
+		// printf("current enc number : %d\n", currEncCharNumber);
+		// printf("current character : %c\n", currEncChar);
+	}
+}
+
+char GetNumberToCharMapping(int number)
+{
+	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+
+	// Return if the number is out of bounds
+	if (number < 0 || 27 < number)
+	{
+		// Lower case 'e' means that there was an invalid number
+		return 'e';
+	}
+
+	return possibleChars[number];
+}
+
+int GetCharToNumberMapping(char character)
+{
+	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+
+	int i;
+	for (i = 0; i < NUMBER_ALLOWED_CHARS; i++)
+	{
+		if (character == possibleChars[i])
+		{
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer)
