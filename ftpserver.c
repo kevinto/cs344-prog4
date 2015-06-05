@@ -145,14 +145,7 @@ int main (int argc, char *argv[])
 		}
 
 		// Create child process to handle processing
-		// TODO: need to limit to only 5 forks
-		//	-- children tracking works. need to set up how to reject client
-		// if (number_children == 5)
-		// {
-		// 	printf("too many children!!!!\n");
-		// }
-		number_children++;
-
+		number_children++; // Keep track of number of open children
 		pid = fork();
 		if (pid < 0)
 		{
@@ -203,7 +196,15 @@ void ProcessConnection(int socket)
 		exit(0); // Exiting the child process.
 	}
 
-	// sleep(4); // TODO
+	if (number_children > 5)
+	{
+		strncpy(handshakeReply, "T", 1);
+		SendClientHandshakeResponse(socket, handshakeReply);
+		exit(0); // Exiting the child process.
+	}
+
+	strncpy(handshakeReply, "S", 1);
+	SendClientHandshakeResponse(socket, handshakeReply);
 
 	// Receive the plaintext and key file from the client
 	// Both plaintext and key are in one file

@@ -41,7 +41,7 @@ void RemoveNewLineAndAddNullTerm(char *fileName);
 void CheckKeyLength(long keySize, long plainTextSize, char *keyName);
 void ScanInvalidCharacters(char *stringToCheck, int stringLength);
 void SendFileToServer(int sockfd, int tempFileDesc);
-void ReceiveFileFromServer(int sockfd, char *fileName);
+void ReceiveFileFromServer(int sockfd);
 int CombineTwoFiles(char *fileOneName, char *fileTwoName);
 int GetTempFD();
 void AddNewLineToEndOfFile(FILE *filePointer);
@@ -187,6 +187,15 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 		printf("Error: Server rejected this client because this client is not the correct one to connect to the specified server.\n");
 		exit(1);
 	}
+	else if (strcmp(handshakeResponse, "S") == 0)
+	{
+		printf("[otp_enc] Handshake successful!\n");
+	}
+	else if (strcmp(handshakeResponse, "T") == 0)
+	{
+		printf("Error: Server rejected this client because it already has too many processes running\n");
+		exit(1);
+	}
 
 	CheckIfFileEndingValid(plainTextFileName);
 	CheckIfFileEndingValid(keyFileName);
@@ -198,7 +207,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 
 	// Receive result file from server
 	// TODO - Implement temp file to output
-	ReceiveFileFromServer(sockfd, "final");
+	ReceiveFileFromServer(sockfd);
 
 	close (sockfd);
 	printf("[otp_enc] Connection lost.\n");
@@ -219,8 +228,8 @@ void SendHandshakeToServer(int sockfd)
 {
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
-	// strncpy(sendBuffer, "otp_enc", LENGTH);
-	strncpy(sendBuffer, "otp_dec", LENGTH);
+	strncpy(sendBuffer, "otp_enc", LENGTH);
+	// strncpy(sendBuffer, "otp_dec", LENGTH);
 
 	int sendSize = 7;
 	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
@@ -271,50 +280,45 @@ void CheckIfFileEndingValid(char *fileName)
 	fclose(filePointer);
 }
 
-void ReceiveFileFromServer(int sockfd, char *fileName)
+void ReceiveFileFromServer(int sockfd)
 {
-	printf("[otp_enc] Receiveing file from Server and saving it as final.txt...");
+	char recvBuffer[LENGTH];
+	bzero(recvBuffer, LENGTH);
 
-	FILE *filePointer = fopen(fileName, "w");
-	if (filePointer == 0)
-		printf("[otp_enc] File %s Cannot be opened.\n", fileName);
-	else
+	printf("client print: ");
+
+	// Wait for info that is sent from server
+	int receiveSize = 0;
+	while ((receiveSize = recv(sockfd, recvBuffer, LENGTH, 0)) > 0)
 	{
-		char recvBuffer[LENGTH];
+		// Write info sent from server into file
+		// int writeSize = fwrite(recvBuffer, sizeof(char), receiveSize, filePointer);
+		// if (writeSize < receiveSize)
+		// {
+		// 	error("[otp_enc] File write failed.\n");
+		// }
+		printf("%s", recvBuffer);
 		bzero(recvBuffer, LENGTH);
 
-		// Wait for info that is sent from server
-		int receiveSize = 0;
-		while ((receiveSize = recv(sockfd, recvBuffer, LENGTH, 0)) > 0)
+		// Exit out of receive loop if data chunk size is invalid
+		if (receiveSize == 0 || receiveSize != 512)
 		{
-			// Write info sent from server into file
-			int writeSize = fwrite(recvBuffer, sizeof(char), receiveSize, filePointer);
-			if (writeSize < receiveSize)
-			{
-				error("[otp_enc] File write failed.\n");
-			}
-			bzero(recvBuffer, LENGTH);
-
-			// Exit out of receive loop if data chunk size is invalid
-			if (receiveSize == 0 || receiveSize != 512)
-			{
-				break;
-			}
+			break;
 		}
-		if (receiveSize < 0)
-		{
-			if (errno == EAGAIN)
-			{
-				printf("[otp_enc] recv() timed out.\n");
-			}
-			else
-			{
-				printf("[otp_enc] recv() failed \n");
-			}
-		}
-		printf("Ok received from server!\n");
-		fclose(filePointer);
 	}
+	if (receiveSize < 0)
+	{
+		if (errno == EAGAIN)
+		{
+			printf("[otp_enc] recv() timed out.\n");
+		}
+		else
+		{
+			printf("[otp_enc] recv() failed \n");
+		}
+	}
+	printf("\n");
+	printf("Ok received from server!\n");
 }
 
 // void SendFileToServer(int sockfd, char *fileName)
@@ -495,8 +499,6 @@ void ScanInvalidCharacters(char *stringValue, int stringLength)
 	}
 }
 
-// found here: http://www.thegeekstuff.com/2012/06/c-temporary-files/
-// how to use the temp file with fwrite - http://www.it.uc3m.es/abel/as/PRJ/M5/inclass_en.html
 int GetTempFD()
 {
 	char tempFileNameBuffer[32];
