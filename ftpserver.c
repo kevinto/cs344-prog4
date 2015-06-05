@@ -88,7 +88,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		printf("[Server] Obtaining socket descriptor successfully.\n");
+		// printf("[otp_enc_d] Obtaining socket descriptor successfully.\n"); // For debugging only
 	}
 
 	// Fill the client socket address struct
@@ -105,7 +105,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		printf("[Server] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber);
+		// printf("[otp_enc_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
 	}
 
 	// Listen to port
@@ -116,7 +116,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		printf ("[Server] Listening the port %d successfully.\n", portNumber);
+		// printf ("[otp_enc_d] Listening the port %d successfully.\n", portNumber); // For debugging only
 	}
 
 	// Set up the signal handler to clean up zombie children
@@ -141,7 +141,7 @@ int main (int argc, char *argv[])
 		}
 		else
 		{
-			printf("[Server] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr));
+			// printf("[otp_enc_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
 		}
 
 		// Create child process to handle processing
@@ -243,7 +243,7 @@ void ProcessConnection(int socket)
 	FILE *resultFilePointer = fdopen(resultTempFD, "w+");
 	if (resultFilePointer != 0)
 	{
-		printf("putting to file: %s\n", cipherText);
+		// printf("putting to file: %s\n", cipherText); // For debugging only
 		fputs(cipherText, resultFilePointer);
 		AddNewLineToEndOfFile(resultFilePointer);
 	}
@@ -259,7 +259,7 @@ void ProcessConnection(int socket)
 	close(receiveTempFilePointer);
 	close(socket);
 
-	printf("[Server] Connection with Client closed. Server will wait now...\n");
+	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
 void SendClientHandshakeResponse(int socket, char *serverResponse)
@@ -519,12 +519,8 @@ int GetSizeOfPlaintext(FILE *filePointer)
 
 void SendFileToClient(int socket, int tempFilePointer)
 {
-	// char* fs_name = "receive";
-	char sdbuf[LENGTH]; // Send buffer
-	// printf("[Server] Sending %s to the Client...", fs_name);
-	printf("[Server] Sending received file to the Client...");
-	// FILE *fs = fopen(fs_name, "r");
-	// if (fs == NULL)
+	char sendBuffer[LENGTH]; // Send buffer
+	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
 	if (tempFilePointer == 0)
 	{
 		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
@@ -532,19 +528,19 @@ void SendFileToClient(int socket, int tempFilePointer)
 		exit(1);
 	}
 
-	bzero(sdbuf, LENGTH);
-	int fs_block_sz;
-	while ((fs_block_sz = read(tempFilePointer, sdbuf, LENGTH)) > 0)
+	bzero(sendBuffer, LENGTH);
+	int readSize;
+	while ((readSize = read(tempFilePointer, sendBuffer, LENGTH)) > 0)
 	{
-		if (send(socket, sdbuf, fs_block_sz, 0) < 0)
+		if (send(socket, sendBuffer, readSize, 0) < 0)
 		{
 			// fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
 			fprintf(stderr, "ERROR: Failed to send file temp received.");
 			exit(1);
 		}
-		bzero(sdbuf, LENGTH);
+		bzero(sendBuffer, LENGTH);
 	}
-	printf("Ok sent to client!\n");
+	// printf("Ok sent to client!\n"); // For debugging only
 }
 
 void ReceiveClientFile(int socket, FILE *tempFilePointer)
@@ -579,7 +575,7 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer)
 			exit(1);
 		}
 	}
-	printf("Ok received from client!\n");
+	// printf("Ok received from client!\n"); // For debugging only
 }
 
 // found here: http://www.thegeekstuff.com/2012/06/c-temporary-files/

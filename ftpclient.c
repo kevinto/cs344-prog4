@@ -175,7 +175,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	}
 	else
 	{
-		printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber);
+		// printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber); // For debugging
 	}
 
 	// Send initial handshake message
@@ -189,7 +189,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	}
 	else if (strcmp(handshakeResponse, "S") == 0)
 	{
-		printf("[otp_enc] Handshake successful!\n");
+		// printf("[otp_enc] Handshake successful!\n"); // For debugging
 	}
 	else if (strcmp(handshakeResponse, "T") == 0)
 	{
@@ -206,11 +206,10 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	SendFileToServer(sockfd, resultTempFd); // Send the combined file
 
 	// Receive result file from server
-	// TODO - Implement temp file to output
 	ReceiveFileFromServer(sockfd);
 
 	close (sockfd);
-	printf("[otp_enc] Connection lost.\n");
+	// printf("[otp_enc] Connection lost.\n"); // For debugging
 }
 
 void ReceiveServerHandshakeConfirm(int sockfd, char *handshakeResponse)
@@ -285,18 +284,11 @@ void ReceiveFileFromServer(int sockfd)
 	char recvBuffer[LENGTH];
 	bzero(recvBuffer, LENGTH);
 
-	printf("client print: ");
-
 	// Wait for info that is sent from server
 	int receiveSize = 0;
 	while ((receiveSize = recv(sockfd, recvBuffer, LENGTH, 0)) > 0)
 	{
-		// Write info sent from server into file
-		// int writeSize = fwrite(recvBuffer, sizeof(char), receiveSize, filePointer);
-		// if (writeSize < receiveSize)
-		// {
-		// 	error("[otp_enc] File write failed.\n");
-		// }
+		// Output the encyption results
 		printf("%s", recvBuffer);
 		bzero(recvBuffer, LENGTH);
 
@@ -317,8 +309,7 @@ void ReceiveFileFromServer(int sockfd)
 			printf("[otp_enc] recv() failed \n");
 		}
 	}
-	printf("\n");
-	printf("Ok received from server!\n");
+	// printf("Ok received from server!\n");
 }
 
 // void SendFileToServer(int sockfd, char *fileName)
@@ -336,7 +327,7 @@ void SendFileToServer(int sockfd, int tempFileDesc)
 	// 	exit(1);
 	// }
 
-	printf("[otp_enc] Sending file to the Server... ");
+	// printf("[otp_enc] Sending file to the Server... "); // For debugging only
 	int sendSize;
 	// while ((sendSize = fread(sendBuffer, sizeof(char), LENGTH, filePointer)) > 0)
 	while ((sendSize = read(tempFileDesc, sendBuffer, sizeof(sendBuffer))) > 0)
@@ -348,9 +339,7 @@ void SendFileToServer(int sockfd, int tempFileDesc)
 		}
 		bzero(sendBuffer, LENGTH);
 	}
-	printf("Ok File from Client was Sent!\n");
-
-	// fclose(filePointer);
+	// printf("Ok File from Client was Sent!\n"); // For debugging only
 }
 
 int CombineTwoFiles(char *fileOneName, char *fileTwoName)
