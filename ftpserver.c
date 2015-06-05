@@ -44,6 +44,7 @@ void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, i
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
 int ReceiveClientHandshake(int socket);
+void SendClientHandshakeResponse(int socket, char *serverResponse);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -189,10 +190,17 @@ void ProcessConnection(int socket)
 {
 	/// TODO - We are in forked process now check the
 	// printf("child number: %d\n", number_children);
+	char handshakeReply[2];
 	int precedeWithEnc = ReceiveClientHandshake(socket);
+
+	// If client is not the correct client, then reject it.
 	if (!precedeWithEnc)
 	{
-		printf("this is an invalid client\n");
+		// Send rejection message
+		strncpy(handshakeReply, "R", 1);
+		SendClientHandshakeResponse(socket, handshakeReply);
+
+		exit(0); // Exiting the child process.
 	}
 
 	// sleep(4); // TODO
@@ -251,6 +259,19 @@ void ProcessConnection(int socket)
 	close(socket);
 
 	printf("[Server] Connection with Client closed. Server will wait now...\n");
+}
+
+void SendClientHandshakeResponse(int socket, char *serverResponse)
+{
+	char sendBuffer[2]; // Send buffer
+	bzero(sendBuffer, 2);
+	strncpy(sendBuffer, serverResponse, 1);
+
+	if (send(socket, sendBuffer, 1, 0) < 0)
+	{
+		printf("[otp_enc_d] ERROR: Failed to send client the handshake response.");
+		exit(1);
+	}
 }
 
 int ReceiveClientHandshake(int socket)
@@ -523,7 +544,6 @@ void SendFileToClient(int socket, int tempFilePointer)
 		bzero(sdbuf, LENGTH);
 	}
 	printf("Ok sent to client!\n");
-	// fclose(fr);
 }
 
 void ReceiveClientFile(int socket, FILE *tempFilePointer)

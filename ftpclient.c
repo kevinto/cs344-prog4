@@ -49,6 +49,7 @@ void OutputTempFile(int tempFileDesc);
 void BufRemoveNewLineAndAddSemiColon(char *buffer, int bufferSize);
 void CheckIfFileEndingValid(char *fileName);
 void SendHandshakeToServer(int sockfd);
+void ReceiveServerHandshakeConfirm(int sockfd, char *handshakeResponse);
 
 /**************************************************************
  * * Entry:
@@ -150,6 +151,8 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	int sockfd;
 	struct sockaddr_in remote_addr;
 	int portNumber = atoi(portString);
+	char handshakeResponse[2];
+	bzero(handshakeResponse, 2);
 
 	/* Get the Socket file descriptor */
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
@@ -177,6 +180,13 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 
 	// Send initial handshake message
 	SendHandshakeToServer(sockfd); // Send the combined file
+	ReceiveServerHandshakeConfirm(sockfd, handshakeResponse);
+
+	if (strcmp(handshakeResponse, "R") == 0)
+	{
+		printf("Error: Server rejected this client because this client is not the correct one to connect to the specified server.\n");
+		exit(1);
+	}
 
 	CheckIfFileEndingValid(plainTextFileName);
 	CheckIfFileEndingValid(keyFileName);
@@ -194,13 +204,23 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	printf("[otp_enc] Connection lost.\n");
 }
 
-// void SendFileToServer(int sockfd, char *fileName)
+void ReceiveServerHandshakeConfirm(int sockfd, char *handshakeResponse)
+{
+	char recvBuffer[2];
+	bzero(recvBuffer, 2);
+
+	// Wait for info that is sent from server
+	recv(sockfd, recvBuffer, 1, 0);
+
+	strncpy(handshakeResponse, recvBuffer, 1);
+}
+
 void SendHandshakeToServer(int sockfd)
 {
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
-	strncpy(sendBuffer, "otp_enc", LENGTH);
-	// strncpy(sendBuffer, "otp_dec", LENGTH);
+	// strncpy(sendBuffer, "otp_enc", LENGTH);
+	strncpy(sendBuffer, "otp_dec", LENGTH);
 
 	int sendSize = 7;
 	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
