@@ -158,7 +158,7 @@ int main (int argc, char *argv[])
 
 		if (pid == 0)
 		{
-			/* This is the client process */
+			// This is the client process
 			close(sockfd);
 			ProcessConnection(newsockfd);
 			exit(0);
