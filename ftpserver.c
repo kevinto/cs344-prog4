@@ -30,7 +30,6 @@
 // Global variable to track number of children
 int number_children = 0;
 
-void error(const char *msg);
 void ProcessConnection(int socket);
 int GetTempFD();
 void ReceiveClientFile(int socket, FILE *tempFilePointer);
@@ -292,6 +291,21 @@ int ReceiveClientHandshake(int socket)
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  plainTextString - the plaintext string
+ * *	plainTextSize - the plaintext size 
+ * *	keyTextString - the key string
+ * *	keyTextSize - the key size
+ * *	cipherText - the ciper text, returned by ref
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Gets the cipher text from the given plaintext and key
+ * *
+ * ***************************************************************/
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
 {
 	int i;
@@ -301,9 +315,14 @@ void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, i
 	int currKeyTextNumber;
 	for (i = 0; i < plainTextSize; i++)
 	{
+		// Get the number mappings
 		currPlainTextNumber = GetCharToNumberMapping(plainTextString[i]);
 		currKeyTextNumber = GetCharToNumberMapping(keyTextString[i]);
+
+		// Get the number after encyption
 		currEncCharNumber = (currPlainTextNumber + currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
+
+		// Get the character from the encryption number
 		currEncChar = GetNumberToCharMapping(currEncCharNumber);
 
 		cipherText[i] = currEncChar;
@@ -313,6 +332,19 @@ void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, i
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  number - an int number 
+ * *
+ * * Exit:
+ * *  Returns the character that is mapped to the number. Returns 
+ * *	'e' if it is an unsupported number.
+ * *
+ * * Purpose:
+ * * 	Gets the character for the specified number. The number range
+ * *	is between 0 and 27, inclusive.
+ * *
+ * ***************************************************************/
 char GetNumberToCharMapping(int number)
 {
 	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
@@ -327,6 +359,18 @@ char GetNumberToCharMapping(int number)
 	return possibleChars[number];
 }
 
+/**************************************************************
+ * * Entry:
+ * *  character - a character
+ * *
+ * * Exit:
+ * *  Returns the number that is mapped to the character. Returns 
+ * *	-1 if it is an invalid character.
+ * *
+ * * Purpose:
+ * * 	Gets the number that maps to the specified character
+ * *
+ * ***************************************************************/
 int GetCharToNumberMapping(char character)
 {
 	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
@@ -343,6 +387,19 @@ int GetCharToNumberMapping(char character)
 	return -1;
 }
 
+/**************************************************************
+ * * Entry:
+ * *  keyTextString - the key string
+ * * 	keyTextSize	- the size of the key string
+ * *	filePointer - the file containing the key string
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Saves the key from the file into the specified string.
+ * *
+ * ***************************************************************/
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer)
 {
 	char readBuffer[LENGTH];
@@ -389,6 +446,19 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  plainTextString - the plaintext string
+ * * 	plainTextSize	- the size of the plaintext string
+ * *	filePointer - the file containing the plaintext string
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Saves the plaintext from the file into the specified string.
+ * *
+ * ***************************************************************/
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer)
 {
 	char readBuffer[LENGTH];
@@ -423,6 +493,19 @@ void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *fileP
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  filePointer - The file pointer to the file containing the 
+ * *								plaintext and key, semi-colon delimited.
+ * *
+ * * Exit:
+ * *  Returns the key size as an int.
+ * *
+ * * Purpose:
+ * * 	Gets the key size from the file containing both the 
+ * *	plaintext and key.
+ * *
+ * ***************************************************************/
 int GetSizeOfKeyText(FILE *filePointer)
 {
 	char readBuffer[LENGTH];
@@ -476,6 +559,19 @@ int GetSizeOfKeyText(FILE *filePointer)
 	return keyTextSize;
 }
 
+/**************************************************************
+ * * Entry:
+ * *  filePointer - The file pointer to the file containing the 
+ * *								plaintext and key, semi-colon delimited.
+ * *
+ * * Exit:
+ * *  Returns the plaintext size as an int.
+ * *
+ * * Purpose:
+ * * 	Gets the plaintext size from the file containing both the 
+ * *	plaintext and key.
+ * *
+ * ***************************************************************/
 int GetSizeOfPlaintext(FILE *filePointer)
 {
 	char readBuffer[LENGTH];
@@ -517,6 +613,18 @@ int GetSizeOfPlaintext(FILE *filePointer)
 	return fileSize;
 }
 
+/**************************************************************
+ * * Entry:
+ * *  socket - the file desc for the socket
+ * *	tempFilePointer - the file desc for the temp file
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends the contents of the temp file to the client.
+ * *
+ * ***************************************************************/
 void SendFileToClient(int socket, int tempFilePointer)
 {
 	char sendBuffer[LENGTH]; // Send buffer
@@ -543,6 +651,18 @@ void SendFileToClient(int socket, int tempFilePointer)
 	// printf("Ok sent to client!\n"); // For debugging only
 }
 
+/**************************************************************
+ * * Entry:
+ * *  socket - the file desc for the socket
+ * *	tempFilePointer - the file desc for the temp file
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Gets the file from the client and puts it into the temp file.
+ * *
+ * ***************************************************************/
 void ReceiveClientFile(int socket, FILE *tempFilePointer)
 {
 	char receiveBuffer[LENGTH]; // Receiver buffer
@@ -555,7 +675,7 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer)
 		int bytesWrittenToFile = fwrite(receiveBuffer, sizeof(char), bytesReceived, tempFilePointer);
 		if (bytesWrittenToFile < bytesReceived)
 		{
-			error("File write failed on server.\n");
+			printf("[otp_enc_d] File write failed on server.\n");
 		}
 		bzero(receiveBuffer, LENGTH);
 		if (bytesReceived == 0 || bytesReceived != 512)
@@ -578,8 +698,18 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer)
 	// printf("Ok received from client!\n"); // For debugging only
 }
 
-// found here: http://www.thegeekstuff.com/2012/06/c-temporary-files/
-// how to use the temp file with fwrite - http://www.it.uc3m.es/abel/as/PRJ/M5/inclass_en.html
+/**************************************************************
+ * * Entry:
+ * *  N/a
+ * *
+ * * Exit:
+ * *  Returns the temp file descriptor
+ * *
+ * * Purpose:
+ * * 	Gets the temp file descriptor. This temp file will clean it  
+ * *  self up at the program end.
+ * *
+ * ***************************************************************/
 int GetTempFD()
 {
 	char tempFileNameBuffer[32];
@@ -608,39 +738,20 @@ int GetTempFD()
 		return 1;
 	}
 
-	// // Write some data to the temporary file
-	// if (-1 == write(filedes, buffer, sizeof(buffer)))
-	// {
-	//   printf("\n write failed with error [%s]\n", strerror(errno));
-	//   return 1;
-	// }
-
-	// int count;
-	// if ( (count = read(filedes, buffer, 11)) < 11 )
-	// {
-	//   printf("\n read failed with error [%s]\n", strerror(errno));
-	//   return 1;
-	// }
-
-	// Show whatever is read
-	// printf("\n Data read back from temporary file is [%s]\n", buffer);
 	return filedes;
-
-	// errno = 0;
-	// // rewind the stream pointer to the start of temporary file
-	// if (-1 == lseek(filedes, 0, SEEK_SET)) // Need this function for later
-	// {
-	//   printf("\n lseek failed with error [%s]\n", strerror(errno));
-	//   return 1;
-	// }
 }
 
-void error(const char *msg)
-{
-	perror(msg);
-	exit(1);
-}
-
+/**************************************************************
+ * * Entry:
+ * *  filePointer - the file pointer to an opened writeable file
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  Adds a new line to the end of a file.
+ * *
+ * ***************************************************************/
 void AddNewLineToEndOfFile(FILE *filePointer)
 {
 	char newlineBuffer[1] = "\n";
