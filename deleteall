@@ -2,7 +2,6 @@
 
 killall otp*
 
-rm -rf key20 key70000 
+rm -rf key20 key70000 ciph*text* *_a results
 
-rm -rf keygen otp_enc otp_enc_d
-rm -rf filetorecieve.txt
+rm -rf keygen otp_enc otp_enc_d otp_dec otp_dec_d

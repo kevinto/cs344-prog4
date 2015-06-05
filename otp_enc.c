@@ -375,15 +375,6 @@ void SendFileToServer(int sockfd, int tempFileDesc)
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
 
-	// OutputTempFile(tempFileDesc);
-	// FILE *filePointer = fopen(fileName, "rb");
-	// FILE *filePointer = fdopen(tempFileDesc, "rb");
-	// if (filePointer == NULL)
-	// {
-	// 	printf("[otp_enc] ERROR: File not found to be sent.\n");
-	// 	exit(1);
-	// }
-
 	// printf("[otp_enc] Sending file to the Server... "); // For debugging only
 	int sendSize;
 	// while ((sendSize = fread(sendBuffer, sizeof(char), LENGTH, filePointer)) > 0)
@@ -542,7 +533,10 @@ void ScanInvalidCharacters(char *stringValue, int stringLength)
 		// If there is an invalid character then exit the program
 		if (strchr(possibleChars, stringValue[i]) == 0)
 		{
-			printf("otp_enc error: input contains bad characters\n");
+			// printf("otp_enc error: input contains bad characters\n");
+			char errorMsg[] = "otp_enc error: input contains bad characters";
+			fprintf(stderr, "%s\n", errorMsg);
+			// error(errorMsg);
 			exit(1);
 		}
 	}
