@@ -1,7 +1,11 @@
 /**************************************************************
  * *  Filename: otp_enc_d.c
  * *  Coded by: Kevin To
- * *  Purpose -
+ * *  Purpose - Acts as a server to process encyption requests.
+ * *            Sample command:
+ * *              otp_enc_d port 
+ * *
+ * *              port = the port for the client to connect to.
  * *
  * ***************************************************************/
 #include <stdlib.h>
@@ -180,8 +184,6 @@ int main (int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
-	/// TODO - We are in forked process now check the
-	// printf("child number: %d\n", number_children);
 	char handshakeReply[2];
 	int precedeWithEnc = ReceiveClientHandshake(socket);
 
@@ -195,6 +197,8 @@ void ProcessConnection(int socket)
 		exit(0); // Exiting the child process.
 	}
 
+	// If there are more than 5 server children then close the connection 
+	// with the client
 	if (number_children > 5)
 	{
 		strncpy(handshakeReply, "T", 1);
@@ -261,6 +265,19 @@ void ProcessConnection(int socket)
 	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
+
+/**************************************************************
+ * * Entry:
+ * *  socket - the socket to send the hankdshake acknoledgement from.
+ * *  serverResponse - The single letter response from the server.
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends a response to the client's initial handshake message
+ * *
+ * ***************************************************************/
 void SendClientHandshakeResponse(int socket, char *serverResponse)
 {
 	char sendBuffer[2]; // Send buffer
@@ -274,6 +291,18 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  socket - the socket to receive the hankdshake from
+ * *
+ * * Exit:
+ * *  Returns 1: if the client is compatible with the server.
+ * *  Returns 0: if the client is incompatible with the server.
+ * *
+ * * Purpose:
+ * * 	Receives the initial message from the client.
+ * *
+ * ***************************************************************/
 int ReceiveClientHandshake(int socket)
 {
 	char receiveBuffer[8]; // Receiver buffer
