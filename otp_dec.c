@@ -1,7 +1,7 @@
 /**************************************************************
  * *  Filename: otp_dec.c
  * *  Coded by: Kevin To
- * *  Purpose - Acts as the client to send work to the decryption 
+ * *  Purpose - Acts as the client to send work to the decryption
  * *            daemon.
  * *            Sample command:
  * *              otp_dec ciphertext key port
@@ -75,6 +75,10 @@ int main(int argc, char *argv[])
 	}
 
 	// ------------------------------ Get the cipher text ----------------------
+	// This section gets the size of the cipher text file in order to check it against
+	// 	the key size. This section also saves the cipher text file into a string, so
+	//	we can analyze the string for invalid characters and send it to the server.
+
 	FILE *filePointer = fopen(argv[1], "rb");
 	if (filePointer == 0)
 	{
@@ -97,6 +101,10 @@ int main(int argc, char *argv[])
 	RemoveNewLineAndAddNullTerm(cipherTextString);
 
 	// ------------------------------ Get the key ----------------------
+	// This section gets the size of the key file in order to check it against
+	// 	the ciphertext size. This section also saves the key file into a string, so
+	//	we can analyze the string for invalid characters and send it to the server.
+
 	filePointer = fopen(argv[2], "rb");
 	if (filePointer == 0)
 	{
@@ -118,14 +126,15 @@ int main(int argc, char *argv[])
 	keyString[keySize] = 0; // Null terminate the string
 	RemoveNewLineAndAddNullTerm(keyString);
 
-	// Check if the key is shorter than the ciphertext 
+	// Check if the key is shorter than the ciphertext
 	CheckKeyLength(keySize, cipherTextSize, argv[2]);
 
 	// Check if key or cipher text have any invalid characters
 	ScanInvalidCharacters(cipherTextString, cipherTextSize);
 	ScanInvalidCharacters(keyString, keySize);
 
-	// Connect to server
+	// Connect to server to send the plaintext and key. This method
+	// 	also receives the server response containing the decrypted text
 	ConnectToServer(argv[3], argv[1], argv[2]);
 
 	// Free the strings
@@ -154,20 +163,22 @@ void ConnectToServer(char *portString, char *cipherTextFileName, char *keyFileNa
 	char handshakeResponse[2];
 	bzero(handshakeResponse, 2);
 
-	/* Get the Socket file descriptor */
+	// --------------- Section for connecting to the socket---------
+
+	// Get the Socket file descriptor
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
 		printf("Error: Failed to obtain socket descriptor.\n");
 		exit(2);
 	}
 
-	/* Fill the socket address struct */
+	// Fill the socket address struct
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_port = htons(portNumber);
 	inet_pton(AF_INET, "127.0.0.1", &remote_addr.sin_addr);
 	bzero(&(remote_addr.sin_zero), 8);
 
-	/* Try to connect the remote */
+	// Try to connect the remote
 	if (connect(sockfd, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) == -1)
 	{
 		printf("Error: could not contact otp_dec_d on port %s\n", portString);
@@ -178,21 +189,28 @@ void ConnectToServer(char *portString, char *cipherTextFileName, char *keyFileNa
 		// printf("[otp_dec] Connected to server at port %d...ok!\n", portNumber); // For debugging
 	}
 
-	// Send initial handshake message
+	// Send initial handshake message to make sure the server exists and that
+	//	we are trying to connect to the correct server
 	SendHandshakeToServer(sockfd); // Send the combined file
+
+	// Receives the server status. We will only send the plain text data if the server is
+	//	willing to accept it.
 	ReceiveServerHandshakeConfirm(sockfd, handshakeResponse);
 
 	if (strcmp(handshakeResponse, "R") == 0)
 	{
+		// Server rejected this client because this client is unautherized to connect
 		fprintf(stderr, "Error: could not contact otp_dec_d on port %s\n", portString);
 		exit(1);
 	}
 	else if (strcmp(handshakeResponse, "S") == 0)
 	{
+		// Server connected successfully
 		// printf("[otp_dec] Handshake successful!\n"); // For debugging
 	}
 	else if (strcmp(handshakeResponse, "T") == 0)
 	{
+		// Server is busy (too many processes running)
 		printf("Error: Server rejected this client because it already has too many processes running\n");
 		exit(1);
 	}
@@ -200,6 +218,7 @@ void ConnectToServer(char *portString, char *cipherTextFileName, char *keyFileNa
 	CheckIfFileEndingValid(cipherTextFileName);
 	CheckIfFileEndingValid(keyFileName);
 
+// Combine the key and ciphertext files to send to the server
 	int resultTempFd = CombineTwoFiles(cipherTextFileName, keyFileName);
 	// OutputTempFile(resultTempFd); // debug code, there is a problem with files that have no EOL.
 
@@ -545,7 +564,7 @@ void ScanInvalidCharacters(char *stringValue, int stringLength)
  * *  Returns the temp file descriptor
  * *
  * * Purpose:
- * * 	Gets the temp file descriptor. This temp file will clean it  
+ * * 	Gets the temp file descriptor. This temp file will clean it
  * *  self up at the program end.
  * *
  * ***************************************************************/
@@ -652,8 +671,8 @@ void OutputTempFile(int tempFileDesc)
 
 /**************************************************************
  * * Entry:
- * *  buffer - 
- * *	bufferSize - 
+ * *  buffer -
+ * *	bufferSize -
  * *
  * * Exit:
  * *  n/a

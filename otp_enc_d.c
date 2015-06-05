@@ -76,6 +76,8 @@ int main (int argc, char *argv[])
 		printf("usage: otp_enc_d port\n");
 		exit(1);
 	}
+	
+	// --------------- Section to setup socket -----------------------
 
 	int sockfd, newsockfd, sin_size, pid;
 	struct sockaddr_in addr_local; // client addr
@@ -103,7 +105,7 @@ int main (int argc, char *argv[])
 	// Bind a port
 	if ( bind(sockfd, (struct sockaddr*)&addr_local, sizeof(struct sockaddr)) == -1 )
 	{
-		fprintf(stderr, "ERROR: Failed to bind Port. (errno = %d)\n", errno);
+		// fprintf(stderr, "ERROR: Failed to bind Port. (errno = %d)\n", errno);
 		exit(1);
 	}
 	else
@@ -147,7 +149,7 @@ int main (int argc, char *argv[])
 			// printf("[otp_enc_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
 		}
 
-		// Create child process to handle processing
+		// Create child process to handle processing multiple connections
 		number_children++; // Keep track of number of open children
 		pid = fork();
 		if (pid < 0)
@@ -206,6 +208,7 @@ void ProcessConnection(int socket)
 		exit(0); // Exiting the child process.
 	}
 
+	// Send connection successful back to the client
 	strncpy(handshakeReply, "S", 1);
 	SendClientHandshakeResponse(socket, handshakeReply);
 
@@ -223,21 +226,21 @@ void ProcessConnection(int socket)
 	}
 	AddNewLineToEndOfFile(filePointer);
 
-	// Get the plain text from the file and save to a string
+	// Get the plain text from the file and save to a string so we can encrypt it later
 	int plainTextSize = GetSizeOfPlaintext(filePointer);
 	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(plainTextString, plainTextSize + 1);
 	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
 	// printf("plainTextString: %s\n", plainTextString); // For debug only
 
-	// Get the plain text from the file and save to a string
+	// Get the plain text from the file and save to a string so we can encrypt it later
 	int keyTextSize = GetSizeOfKeyText(filePointer);
 	char *keyTextString = malloc(keyTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(keyTextString, keyTextSize + 1);
 	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
 	// printf("keyTextString: %s\n", keyTextString);
 
-	// calculate size of the encypted text
+	// calculate size of the encypted text so we can allocate space for it.
 	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
 	bzero(cipherText, plainTextSize + 1);
 	EncyptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
