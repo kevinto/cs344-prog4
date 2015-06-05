@@ -184,7 +184,7 @@ void ConnectToServer(char *portString, char *cipherTextFileName, char *keyFileNa
 
 	if (strcmp(handshakeResponse, "R") == 0)
 	{
-		printf("Error: Server rejected this client because this client is not the correct one to connect to the specified server.\n");
+		fprintf(stderr, "Error: could not contact otp_dec_d on port %s\n", portString);
 		exit(1);
 	}
 	else if (strcmp(handshakeResponse, "S") == 0)

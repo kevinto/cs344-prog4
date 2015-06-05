@@ -184,7 +184,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 
 	if (strcmp(handshakeResponse, "R") == 0)
 	{
-		printf("Error: Server rejected this client because this client is not the correct one to connect to the specified server.\n");
+		fprintf(stderr, "Error: could not contact otp_enc_d on port %s\n", portString);
 		exit(1);
 	}
 	else if (strcmp(handshakeResponse, "S") == 0)
@@ -505,7 +505,7 @@ void CheckKeyLength(long keySize, long plainTextSize, char *keyName)
 {
 	if (keySize < plainTextSize)
 	{
-		printf("Error: key %s is too short\n", keyName);
+		fprintf(stderr, "Error: key '%s' is too short\n", keyName);
 		exit(1);
 	}
 }
