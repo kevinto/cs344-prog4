@@ -1,9 +1,9 @@
 /**************************************************************
- * *  Filename: otp_enc_d.c
+ * *  Filename: otp_dec_d.c
  * *  Coded by: Kevin To
  * *  Purpose - Acts as a server to process encyption requests.
  * *            Sample command:
- * *              otp_enc_d port 
+ * *              otp_dec_d port 
  * *
  * *              port = the port for the client to connect to.
  * *
@@ -43,7 +43,7 @@ int GetSizeOfPlaintext(FILE *filePointer);
 int GetSizeOfKeyText(FILE *filePointer);
 void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
-void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
+void DecryptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
 int ReceiveClientHandshake(int socket);
@@ -73,7 +73,7 @@ int main (int argc, char *argv[])
 {
 	if (argc < 2)
 	{
-		printf("usage: otp_enc_d port\n");
+		printf("usage: otp_dec_d port\n");
 		exit(1);
 	}
 
@@ -91,7 +91,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf("[otp_enc_d] Obtaining socket descriptor successfully.\n"); // For debugging only
+		// printf("[otp_dec_d] Obtaining socket descriptor successfully.\n"); // For debugging only
 	}
 
 	// Fill the client socket address struct
@@ -108,7 +108,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf("[otp_enc_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
+		// printf("[otp_dec_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
 	}
 
 	// Listen to port
@@ -119,7 +119,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf ("[otp_enc_d] Listening the port %d successfully.\n", portNumber); // For debugging only
+		// printf ("[otp_dec_d] Listening the port %d successfully.\n", portNumber); // For debugging only
 	}
 
 	// Set up the signal handler to clean up zombie children
@@ -144,7 +144,7 @@ int main (int argc, char *argv[])
 		}
 		else
 		{
-			// printf("[otp_enc_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
+			// printf("[otp_dec_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
 		}
 
 		// Create child process to handle processing
@@ -240,7 +240,7 @@ void ProcessConnection(int socket)
 	// calculate size of the encypted text
 	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
 	bzero(cipherText, plainTextSize + 1);
-	EncyptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
+	DecryptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
 
 	int resultTempFD = 	GetTempFD();
 	FILE *resultFilePointer = fdopen(resultTempFD, "w+");
@@ -262,7 +262,7 @@ void ProcessConnection(int socket)
 	close(receiveTempFilePointer);
 	close(socket);
 
-	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
+	// printf("[otp_dec_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
 
@@ -286,7 +286,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
 
 	if (send(socket, sendBuffer, 1, 0) < 0)
 	{
-		printf("[otp_enc_d] ERROR: Failed to send client the handshake response.");
+		printf("[otp_dec_d] ERROR: Failed to send client the handshake response.");
 		exit(1);
 	}
 }
@@ -310,7 +310,7 @@ int ReceiveClientHandshake(int socket)
 
 	recv(socket, receiveBuffer, LENGTH, 0);
 
-	if (strcmp(receiveBuffer, "otp_enc") == 0)
+	if (strcmp(receiveBuffer, "otp_dec") == 0)
 	{
 		return 1; // Connection valid
 	}
@@ -322,11 +322,11 @@ int ReceiveClientHandshake(int socket)
 
 /**************************************************************
  * * Entry:
- * *  plainTextString - the plaintext string
- * *	plainTextSize - the plaintext size 
+ * *  cipherTextString - the ciphertext string
+ * *	cipherTextSize - the ciphertext size 
  * *	keyTextString - the key string
  * *	keyTextSize - the key size
- * *	cipherText - the ciper text, returned by ref
+ * *	plainText - the ciper text, returned by ref
  * *
  * * Exit:
  * *  n/a
@@ -335,29 +335,39 @@ int ReceiveClientHandshake(int socket)
  * * 	Gets the cipher text from the given plaintext and key
  * *
  * ***************************************************************/
-void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
+void DecryptText(char *cipherTextString, int cipherTextSize, char *keyTextString, int keyTextSize, char *plainText)
 {
 	int i;
 	char currEncChar;
 	int currEncCharNumber;
-	int currPlainTextNumber;
+	int currCipherTextNumber;
 	int currKeyTextNumber;
-	for (i = 0; i < plainTextSize; i++)
+	for (i = 0; i < cipherTextSize; i++)
 	{
 		// Get the number mappings
-		currPlainTextNumber = GetCharToNumberMapping(plainTextString[i]);
+		currCipherTextNumber = GetCharToNumberMapping(cipherTextString[i]);
 		currKeyTextNumber = GetCharToNumberMapping(keyTextString[i]);
 
 		// Get the number after encyption
-		currEncCharNumber = (currPlainTextNumber + currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
+		currEncCharNumber = (currCipherTextNumber - currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
+		if (currEncCharNumber < 0)
+		{
+			currEncCharNumber += NUMBER_ALLOWED_CHARS;
+		}
+
 
 		// Get the character from the encryption number
 		currEncChar = GetNumberToCharMapping(currEncCharNumber);
 
-		cipherText[i] = currEncChar;
+		plainText[i] = currEncChar;
+		
 		// For debugging
-		// printf("current enc number : %d\n", currEncCharNumber);
-		// printf("current character : %c\n", currEncChar);
+		// printf("current letter : %c\n", cipherTextString[i]);
+		// printf("currCipherTextNumber : %d\n", currCipherTextNumber);
+		// printf("current key: %c\n", keyTextString[i]);
+		// printf("currKeyTextNumber: %d\n", currKeyTextNumber);
+		// printf("currEncCharNumber: %d\n", currEncCharNumber);
+		// printf("plaintext char : %c\n", currEncChar);
 	}
 }
 
@@ -657,7 +667,7 @@ int GetSizeOfPlaintext(FILE *filePointer)
 void SendFileToClient(int socket, int tempFilePointer)
 {
 	char sendBuffer[LENGTH]; // Send buffer
-	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
+	// printf("[otp_dec_d] Sending received file to the Client..."); // For debugging only
 	if (tempFilePointer == 0)
 	{
 		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
@@ -704,7 +714,7 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer)
 		int bytesWrittenToFile = fwrite(receiveBuffer, sizeof(char), bytesReceived, tempFilePointer);
 		if (bytesWrittenToFile < bytesReceived)
 		{
-			printf("[otp_enc_d] File write failed on server.\n");
+			printf("[otp_dec_d] File write failed on server.\n");
 		}
 		bzero(receiveBuffer, LENGTH);
 		if (bytesReceived == 0 || bytesReceived != 512)

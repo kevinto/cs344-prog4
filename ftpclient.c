@@ -1,15 +1,15 @@
 /**************************************************************
- * *  Filename: otp_enc.c
+ * *  Filename: otp_dec.c
  * *  Coded by: Kevin To
- * *  Purpose - Acts as the client to send work to the encyption
+ * *  Purpose - Acts as the client to send work to the decryption 
  * *            daemon.
  * *            Sample command:
- * *              otp_enc plaintext key port
+ * *              otp_dec ciphertext key port
  * *
- * *              plaintext = file holding the plain text to be
- * *                          converted.
+ * *              ciphertext = file holding the cipher text to be
+ * *                          decrypted.
  * *              key = file holding they key that will be used in
- * *                    the encyption.
+ * *                    the decryption.
  * *              port = the port to connect to the daemon on.
  * *
  * ***************************************************************/
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	//  display the correct message.
 	if (argc != 4)
 	{
-		printf("usage: otp_enc plaintext key port\n");
+		printf("usage: otp_dec ciphertext key port\n");
 		exit(1);
 	}
 
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 	FILE *filePointer = fopen(argv[1], "rb");
 	if (filePointer == 0)
 	{
-		printf("Plaintext file does not exist\n");
+		printf("ciphertext file does not exist\n");
 		exit(1);
 	}
 
@@ -170,12 +170,12 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	/* Try to connect the remote */
 	if (connect(sockfd, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) == -1)
 	{
-		printf("Error: could not contact otp_enc_d on port %s\n", portString);
+		printf("Error: could not contact otp_dec_d on port %s\n", portString);
 		exit(2);
 	}
 	else
 	{
-		// printf("[otp_enc] Connected to server at port %d...ok!\n", portNumber); // For debugging
+		// printf("[otp_dec] Connected to server at port %d...ok!\n", portNumber); // For debugging
 	}
 
 	// Send initial handshake message
@@ -189,7 +189,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	}
 	else if (strcmp(handshakeResponse, "S") == 0)
 	{
-		// printf("[otp_enc] Handshake successful!\n"); // For debugging
+		// printf("[otp_dec] Handshake successful!\n"); // For debugging
 	}
 	else if (strcmp(handshakeResponse, "T") == 0)
 	{
@@ -209,7 +209,7 @@ void ConnectToServer(char *portString, char *plainTextFileName, char *keyFileNam
 	ReceiveFileFromServer(sockfd);
 
 	close (sockfd);
-	// printf("[otp_enc] Connection lost.\n"); // For debugging
+	// printf("[otp_dec] Connection lost.\n"); // For debugging
 }
 
 /**************************************************************
@@ -250,13 +250,12 @@ void SendHandshakeToServer(int sockfd)
 {
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
-	strncpy(sendBuffer, "otp_enc", LENGTH);
-	// strncpy(sendBuffer, "otp_dec", LENGTH);
+	strncpy(sendBuffer, "otp_dec", LENGTH);
 
 	int sendSize = 7;
 	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
 	{
-		printf("[otp_enc] Error: Failed to send initial handshake.\n");
+		printf("[otp_dec] Error: Failed to send initial handshake.\n");
 	}
 }
 
@@ -348,11 +347,11 @@ void ReceiveFileFromServer(int sockfd)
 	{
 		if (errno == EAGAIN)
 		{
-			printf("[otp_enc] recv() timed out.\n");
+			printf("[otp_dec] recv() timed out.\n");
 		}
 		else
 		{
-			printf("[otp_enc] recv() failed \n");
+			printf("[otp_dec] recv() failed \n");
 		}
 	}
 	// printf("Ok received from server!\n");
@@ -380,18 +379,18 @@ void SendFileToServer(int sockfd, int tempFileDesc)
 	// FILE *filePointer = fdopen(tempFileDesc, "rb");
 	// if (filePointer == NULL)
 	// {
-	// 	printf("[otp_enc] ERROR: File not found to be sent.\n");
+	// 	printf("[otp_dec] ERROR: File not found to be sent.\n");
 	// 	exit(1);
 	// }
 
-	// printf("[otp_enc] Sending file to the Server... "); // For debugging only
+	// printf("[otp_dec] Sending file to the Server... "); // For debugging only
 	int sendSize;
 	// while ((sendSize = fread(sendBuffer, sizeof(char), LENGTH, filePointer)) > 0)
 	while ((sendSize = read(tempFileDesc, sendBuffer, sizeof(sendBuffer))) > 0)
 	{
 		if (send(sockfd, sendBuffer, sendSize, 0) < 0)
 		{
-			printf("[otp_enc] Error: Failed to send file.\n");
+			printf("[otp_dec] Error: Failed to send file.\n");
 			break;
 		}
 		bzero(sendBuffer, LENGTH);
@@ -427,7 +426,7 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName)
 		BufRemoveNewLineAndAddSemiColon(readBuffer, LENGTH); // Removes new line and add null term if needed
 		if (write(tempFD, readBuffer, sizeRead) == -1) // Write to the temp file
 		{
-			printf("[otp_enc] Error in combining plaintext and key\n");
+			printf("[otp_dec] Error in combining ciphertext and key\n");
 		}
 		bzero(readBuffer, LENGTH);
 	}
@@ -440,7 +439,7 @@ int CombineTwoFiles(char *fileOneName, char *fileTwoName)
 		BufRemoveNewLineAndAddSemiColon(readBuffer, LENGTH); // Removes new line and add null term if needed
 		if (write(tempFD, readBuffer, sizeRead) == -1) // Write to the temp file
 		{
-			printf("[otp_enc] Error in combining plaintext and key\n");
+			printf("[otp_dec] Error in combining ciphertext and key\n");
 		}
 		bzero(readBuffer, LENGTH);
 	}
@@ -499,14 +498,14 @@ void RemoveNewLineAndAddNullTerm(char *stringValue)
 /**************************************************************
  * * Entry:
  * *  keySize - the size of the key
- * *  plainTextSize - the size of the plain text
+ * *  ciphertextSize - the size of the plain text
  * *  keyName - the key file name
  * *
  * * Exit:
  * *  n/a
  * *
  * * Purpose:
- * *  Checks if key is shorter than the plaintext. If it is, then
+ * *  Checks if key is shorter than the ciphertext. If it is, then
  * *  display the error message and exit.
  * *
  * ***************************************************************/
@@ -542,7 +541,7 @@ void ScanInvalidCharacters(char *stringValue, int stringLength)
 		// If there is an invalid character then exit the program
 		if (strchr(possibleChars, stringValue[i]) == 0)
 		{
-			printf("otp_enc error: input contains bad characters\n");
+			printf("otp_dec error: input contains bad characters\n");
 			exit(1);
 		}
 	}
