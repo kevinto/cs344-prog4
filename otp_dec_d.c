@@ -114,6 +114,10 @@ int main (int argc, char *argv[])
 		// printf("[otp_dec_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
 	}
 
+	// Set socket option to reuse socket addresses
+	int optval = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));	
+
 	// Listen to port
 	if (listen(sockfd, LISTEN_QUEUE) == -1)
 	{
